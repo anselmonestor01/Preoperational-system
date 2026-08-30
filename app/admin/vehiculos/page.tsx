@@ -8,6 +8,7 @@ export default async function VehiculosPage() {
   const { data } = await supabase
     .from("vehicles")
     .select("id,plate,reference,model,operation_card,insurance_expires,emissions_expires,oil_change_date,status,admin_blocked,admin_block_reason,blocked_at")
+    .neq("status", "archived")
     .order("plate");
   const { data: issues } = await supabase.from("issues").select("vehicle_id").neq("status", "resolved");
   const openBy: Record<string, number> = {};
