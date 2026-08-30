@@ -1,1 +1,6 @@
-PLACEHOLDER
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import "./styles/mm-a.css";
+@import "./styles/mm-b.css";
