@@ -476,7 +476,7 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
           <input className="pin-input" inputMode="numeric" maxLength={4} type="password" value={pin}
             onChange={(e) => setPin(e.target.value.replace(/[^\d]/g, ""))}
             onKeyDown={(e) => { if (e.key === "Enter") confirmPin(); }} autoFocus />
-          {pinErr && <div className="error-box" style={{ marginTop: 10 }}>{pinErr}</div>}
+          {pinErr && <div className="err-box" style={{ marginTop: 10 }}>{pinErr}</div>}
           <button className="btn btn-primary btn-block" style={{ marginTop: 14 }} disabled={pin.length < 4 || pinBusy} onClick={confirmPin}>
             {pinBusy ? "Verificando…" : "Confirmar"}</button>
         </div>

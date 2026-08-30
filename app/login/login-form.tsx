@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { friendlyError } from "@/lib/errors";
 
 export default function LoginForm() {
   const router = useRouter();
@@ -25,10 +26,6 @@ export default function LoginForm() {
       setLoading(false);
       return;
     }
-    // Determinar destino por rol — SIEMPRE acotado al propio usuario.
-    // RLS permite ver a todos los perfiles de la organización; sin filtrar por
-    // id la consulta devolvería varias filas y maybeSingle() fallaría (lo que
-    // se interpretaba erróneamente como "usuario no habilitado").
     const { data } = await supabase
       .from("profiles")
       .select("role,active")
@@ -40,61 +37,34 @@ export default function LoginForm() {
       setLoading(false);
       return;
     }
-    const home =
-      data.role === "operator" || data.role === "driver" ? "/kiosco" : "/admin";
+    const home = data.role === "operator" || data.role === "driver" ? "/kiosco" : "/admin";
     router.replace(home);
     router.refresh();
   }
 
   return (
-    <div className="auth-wrap">
+    <div className="admin-login-wrap">
       <form className="login-card" onSubmit={onSubmit}>
-        <div className="login-brand">
-          <span className="l1">MUNDO</span>
-          <span className="l2">MARÍTIMO</span>
+        <div className="brand">
+          <div className="brand-text"><span className="l1">MUNDO</span><span className="l2">MARÍTIMO</span></div>
         </div>
-        <h2 style={{ margin: "20px 0 2px", fontSize: 22 }}>Iniciar sesión</h2>
-        <p style={{ color: "var(--muted)", fontSize: 13.5, margin: 0 }}>
-          Sistema Preoperacional — acceso corporativo.
-        </p>
+        <h1 className="login-title">Iniciar sesión</h1>
+        <p className="login-sub">Sistema Preoperacional — acceso corporativo.</p>
 
         <div className="form-group">
           <label htmlFor="email">Correo electrónico</label>
-          <input
-            id="email"
-            type="email"
-            className="input"
-            autoComplete="username"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
+          <input id="email" type="email" className="manage-input" style={{ width: "100%" }}
+            autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required />
         </div>
         <div className="form-group">
           <label htmlFor="password">Contraseña</label>
-          <input
-            id="password"
-            type="password"
-            className="input"
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
+          <input id="password" type="password" className="manage-input" style={{ width: "100%" }}
+            autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         </div>
 
-        {error && (
-          <div className="error-box" style={{ marginTop: 14 }}>
-            {error}
-          </div>
-        )}
+        {error && <div className="err-box" style={{ marginBottom: 12 }}>{error}</div>}
 
-        <button
-          className="btn btn-primary btn-block"
-          style={{ marginTop: 18 }}
-          disabled={loading}
-          type="submit"
-        >
+        <button className="btn btn-primary btn-block" disabled={loading} type="submit">
           {loading ? "Ingresando…" : "Ingresar"}
         </button>
       </form>
