@@ -2,9 +2,9 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Mundo Marítimo — Sistema Preoperacional",
+  title: "Preoperacional — Sistema de Inspección de Flotas",
   description:
-    "Sistema empresarial de inspección preoperacional de vehículos — Mundo Marítimo",
+    "Sistema empresarial de inspección preoperacional de vehículos: checklist digital, bloqueo automático de salida y trazabilidad completa por flota.",
 };
 
 export const viewport: Viewport = {

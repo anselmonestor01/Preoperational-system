@@ -30,7 +30,7 @@ const NAV = [
 ];
 
 const TITLES: Record<string, [string, string]> = {
-  "/admin": ["Dashboard", "Panorama operativo de Mundo Marítimo"],
+  "/admin": ["Dashboard", "Panorama operativo de la flota"],
   "/admin/inspecciones": ["Inspecciones", "Historial completo de inspecciones preoperacionales"],
   "/admin/vehiculos": ["Vehículos", "Estado y ficha de cada unidad de la flota"],
   "/admin/conductores": ["Conductores", "Personal habilitado para realizar inspecciones"],
@@ -65,10 +65,10 @@ export default function AdminShell({
       <aside className={"admin-sidebar" + (open ? " open" : "")}>
         <div className="sb-head">
           <div className="brand">
-            <div className="brand-text"><span className="l1">MUNDO </span><span className="l2">MARÍTIMO</span></div>
+            <div className="brand-text"><span className="l1">PRE</span><span className="l2">OPERACIONAL</span></div>
           </div>
           <div style={{ fontSize: 10.5, color: "rgba(255,255,255,.5)", marginTop: 4, letterSpacing: ".6px" }}>
-            SISTEMA PREOPERACIONAL
+            GESTIÓN DE FLOTAS
           </div>
         </div>
         <nav className="sb-nav">

@@ -1,4 +1,4 @@
-# Seguridad — Mundo Marítimo
+# Seguridad — Sistema Preoperacional
 
 La seguridad vive en **backend + base de datos + RLS**, nunca en ocultar botones.
 

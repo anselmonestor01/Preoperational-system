@@ -232,7 +232,7 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
         <div className="d-body d-home2">
           <div className="home2-header">
             <div>
-              <div><span className="home2-brandtext"><span className="l1">MUNDO</span><span className="l2">MARÍTIMO</span></span></div>
+              <div><span className="home2-brandtext"><span className="l1">PRE</span><span className="l2">OPERACIONAL</span></span></div>
               <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 3 }}>Sistema Preoperacional · {round.label}</div>
             </div>
             <div className="home2-status"><span className="home2-dot" />En línea</div>
@@ -553,7 +553,7 @@ function TopBar({ onBack }: { onBack: () => void }) {
       <button className="d-back" onClick={onBack}>
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
       </button>
-      <span className="home2-brandtext"><span className="l1">MUNDO</span><span className="l2">MARÍTIMO</span></span>
+      <span className="home2-brandtext"><span className="l1">PRE</span><span className="l2">OPERACIONAL</span></span>
       <form action="/auth/signout" method="post"><button type="submit" className="d-exit">Salir</button></form>
     </div>
   );

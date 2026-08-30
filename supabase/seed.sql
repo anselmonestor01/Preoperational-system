@@ -1,10 +1,11 @@
 -- =============================================================================
--- MUNDO MARÍTIMO — SEED / DEMO DATA (idempotente)
+-- SISTEMA PREOPERACIONAL — SEED / DEMO DATA (idempotente)
 -- -----------------------------------------------------------------------------
--- ⚠️  DATOS DE DEMOSTRACIÓN. Diferénciar de datos reales.
--- Credenciales demo (CAMBIAR en producción de inmediato):
---   admin@mundomaritimo.com     / MundoMaritimo2026!   (rol: admin)
---   operador@mundomaritimo.com  / Kiosco2026!          (rol: operator/kiosco)
+-- ⚠️  DATOS DE DEMOSTRACIÓN. El nombre de la organización es un CLIENTE ficticio
+-- (no el nombre del producto) para que la demo se vea como un tenant real.
+-- Diferénciar de datos reales. Credenciales demo (CAMBIAR en producción de inmediato):
+--   admin@navierapacifico.com     / Preoperacional2026!  (rol: admin)
+--   operador@navierapacifico.com  / Kiosco2026!          (rol: operator/kiosco)
 -- PIN demo de conductores: ver tabla más abajo (1234, 2345, ...).
 -- =============================================================================
 
@@ -13,12 +14,12 @@ declare
   v_org uuid; v_admin uuid; v_operator uuid; v_struct jsonb;
 begin
   if exists (select 1 from public.organizations where slug='mundo-maritimo') then
-    raise notice 'Seed Mundo Marítimo ya aplicado; se omite.';
+    raise notice 'Seed demo ya aplicado; se omite.';
     return;
   end if;
 
   insert into public.organizations(name, slug, timezone)
-    values ('Mundo Marítimo','mundo-maritimo','America/Bogota') returning id into v_org;
+    values ('Naviera del Pacífico S.A.','mundo-maritimo','America/Bogota') returning id into v_org;
 
   -- ---- Usuarios de autenticación (Supabase Auth) ----------------------------
   v_admin := gen_random_uuid();
@@ -27,12 +28,12 @@ begin
     confirmation_token,recovery_token,email_change_token_new,email_change,
     email_change_token_current,reauthentication_token)
   values ('00000000-0000-0000-0000-000000000000', v_admin,'authenticated','authenticated',
-    'admin@mundomaritimo.com', extensions.crypt('MundoMaritimo2026!', extensions.gen_salt('bf')),
+    'admin@navierapacifico.com', extensions.crypt('Preoperacional2026!', extensions.gen_salt('bf')),
     now(),now(),now(),'{"provider":"email","providers":["email"]}',
-    '{"full_name":"Administrador MM"}','','','','','','');
+    '{"full_name":"Administrador"}','','','','','','');
   insert into auth.identities(provider_id,user_id,identity_data,provider,last_sign_in_at,created_at,updated_at)
-  values ('admin@mundomaritimo.com', v_admin,
-    jsonb_build_object('sub',v_admin::text,'email','admin@mundomaritimo.com','email_verified',true),
+  values ('admin@navierapacifico.com', v_admin,
+    jsonb_build_object('sub',v_admin::text,'email','admin@navierapacifico.com','email_verified',true),
     'email',now(),now(),now());
 
   v_operator := gen_random_uuid();
@@ -41,17 +42,17 @@ begin
     confirmation_token,recovery_token,email_change_token_new,email_change,
     email_change_token_current,reauthentication_token)
   values ('00000000-0000-0000-0000-000000000000', v_operator,'authenticated','authenticated',
-    'operador@mundomaritimo.com', extensions.crypt('Kiosco2026!', extensions.gen_salt('bf')),
+    'operador@navierapacifico.com', extensions.crypt('Kiosco2026!', extensions.gen_salt('bf')),
     now(),now(),now(),'{"provider":"email","providers":["email"]}',
     '{"full_name":"Kiosco Planta"}','','','','','','');
   insert into auth.identities(provider_id,user_id,identity_data,provider,last_sign_in_at,created_at,updated_at)
-  values ('operador@mundomaritimo.com', v_operator,
-    jsonb_build_object('sub',v_operator::text,'email','operador@mundomaritimo.com','email_verified',true),
+  values ('operador@navierapacifico.com', v_operator,
+    jsonb_build_object('sub',v_operator::text,'email','operador@navierapacifico.com','email_verified',true),
     'email',now(),now(),now());
 
   insert into public.profiles(id,organization_id,role,full_name,email) values
-    (v_admin,   v_org,'admin',   'Administrador MM','admin@mundomaritimo.com'),
-    (v_operator,v_org,'operator','Kiosco Planta',   'operador@mundomaritimo.com');
+    (v_admin,   v_org,'admin',   'Administrador',   'admin@navierapacifico.com'),
+    (v_operator,v_org,'operator','Kiosco Planta',   'operador@navierapacifico.com');
 
   -- ---- Checklist: categorías -------------------------------------------------
   insert into public.checklist_categories(organization_id,key,name,icon,sort_order) values
@@ -165,5 +166,5 @@ begin
   insert into public.rounds(organization_id,round_number,label,status,started_by)
     values (v_org,1,'Ronda 1','open',v_admin);
 
-  raise notice 'Seed Mundo Marítimo aplicado. Org=%', v_org;
+  raise notice 'Seed demo aplicado. Org=%', v_org;
 end $$;

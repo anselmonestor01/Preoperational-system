@@ -1,8 +1,8 @@
 {
-  "name": "mundo-maritimo-preoperacional",
+  "name": "sistema-preoperacional",
   "version": "1.0.0",
   "private": true,
-  "description": "Mundo Marítimo — Sistema Preoperacional (Next.js + Supabase)",
+  "description": "Sistema Preoperacional — Gestión de Flotas (Next.js + Supabase)",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

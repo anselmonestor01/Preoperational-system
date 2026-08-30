@@ -1,6 +1,6 @@
 import type { Config } from "tailwindcss";
 
-// Los tokens visuales de Mundo Marítimo viven como variables CSS en globals.css.
+// Los tokens visuales del sistema viven como variables CSS en globals.css.
 // Tailwind los expone como utilidades para maquetación puntual.
 const config: Config = {
   content: [

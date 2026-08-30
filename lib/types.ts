@@ -1,4 +1,4 @@
-// Tipos de dominio (espejo del esquema Postgres de Mundo Marítimo).
+// Tipos de dominio (espejo del esquema Postgres del sistema preoperacional).
 
 export type Role =
   | "superadmin" | "admin" | "supervisor"

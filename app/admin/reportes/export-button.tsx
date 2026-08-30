@@ -13,7 +13,7 @@ export default function ExportButton({ rows }: { rows: Record<string, unknown>[]
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `mundomaritimo-reporte-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `reporte-preoperacional-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   }

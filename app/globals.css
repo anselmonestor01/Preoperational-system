@@ -3,15 +3,15 @@
 @tailwind utilities;
 
 /* =========================================================
-   MUNDO MARÍTIMO — SISTEMA DE DISEÑO
+   SISTEMA PREOPERACIONAL — SISTEMA DE DISEÑO
    Portado fielmente desde el prototipo original (bloque <style> completo).
    No modificar los tokens ni el lenguaje visual sin una razón de producto.
    ========================================================= */
 :root{ --font-display:'Space Grotesk'; --font-sans:'Inter'; }
 
 /* =========================================================
-   MUNDO MARÍTIMO — DESIGN TOKENS
-   Color: navy #0B2545 (texto/estructura), azul marítimo #1568C0 (acción),
+   SISTEMA PREOPERACIONAL — DESIGN TOKENS
+   Color: navy #0B2545 (texto/estructura), azul corporativo #1568C0 (acción),
    celeste #EAF3FC (superficie suave), verde #1E8E5A, naranja #C97A1A, rojo #C6423C
    Type: Space Grotesk (display/números), Inter (UI/cuerpo)
    ========================================================= */

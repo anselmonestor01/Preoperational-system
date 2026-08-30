@@ -46,7 +46,7 @@ export default function LoginForm() {
     <div className="admin-login-wrap">
       <form className="login-card" onSubmit={onSubmit}>
         <div className="brand">
-          <div className="brand-text"><span className="l1">MUNDO</span><span className="l2">MARÍTIMO</span></div>
+          <div className="brand-text"><span className="l1">PRE</span><span className="l2">OPERACIONAL</span></div>
         </div>
         <h1 className="login-title">Iniciar sesión</h1>
         <p className="login-sub">Sistema Preoperacional — acceso corporativo.</p>

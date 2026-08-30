@@ -1,4 +1,4 @@
-# Arquitectura — Mundo Marítimo
+# Arquitectura — Sistema Preoperacional
 
 ## Capas
 

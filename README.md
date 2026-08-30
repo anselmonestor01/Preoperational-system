@@ -1,4 +1,4 @@
-# Mundo Marítimo — Sistema Preoperacional
+# Sistema Preoperacional — Gestión de Flotas
 
 Sistema empresarial **multi-tenant** para gestionar inspecciones preoperacionales
 de vehículos antes de iniciar operaciones. Convierte el prototipo HTML original en
@@ -9,9 +9,11 @@ una aplicación full-stack real, segura y desplegable.
 - **Deploy:** Vercel
 - **Fuente de verdad:** Supabase. El navegador **nunca** es la fuente de verdad.
 
-> Primer cliente: **Mundo Marítimo**. La arquitectura es multi-tenant desde el
-> día uno: cada entidad pertenece a una `organization` y RLS impide que una
-> empresa vea datos de otra.
+> Producto multi-tenant desde el día uno: cada entidad pertenece a una
+> `organization` y RLS impide que una empresa vea datos de otra. El tenant de
+> demostración incluido (**Naviera del Pacífico S.A.**) es un cliente ficticio
+> usado solo para pruebas y presentaciones — el producto en sí no está atado
+> a ninguna empresa.
 
 ---
 
@@ -82,7 +84,7 @@ cp .env.example .env.local
 
 # 3. Base de datos (si es un proyecto Supabase nuevo)
 #    Aplica en orden los archivos de supabase/migrations/*.sql
-#    y luego supabase/seed.sql (datos demo de Mundo Marítimo).
+#    y luego supabase/seed.sql (datos demo).
 
 # 4. Desarrollo
 npm run dev        # http://localhost:3000
@@ -96,8 +98,8 @@ Scripts: `npm run build`, `npm run start`, `npm run typecheck`, `npm run lint`.
 
 | Rol       | Correo                      | Contraseña           | Ruta     |
 |-----------|-----------------------------|----------------------|----------|
-| Admin     | `admin@mundomaritimo.com`   | `MundoMaritimo2026!` | `/admin` |
-| Operador  | `operador@mundomaritimo.com`| `Kiosco2026!`        | `/kiosco`|
+| Admin     | `admin@navierapacifico.com`   | `Preoperacional2026!` | `/admin` |
+| Operador  | `operador@navierapacifico.com`| `Kiosco2026!`         | `/kiosco`|
 
 **PIN demo de conductores:** Juan Pérez `1234`, Carlos Rodríguez `2345`,
 Ernesto Gómez `3456`, Luis Martínez `4567`, Jorge Ramírez `5678`,
@@ -115,7 +117,7 @@ app/                    Rutas Next.js (login, kiosco, admin/*, auth)
 components/admin/       Shell del panel (sidebar, topbar)
 lib/                    Clientes Supabase, tipos, helpers (checklist, formato)
 supabase/migrations/    Migraciones SQL versionadas (0001..0006)
-supabase/seed.sql       Datos demo de Mundo Marítimo
+supabase/seed.sql       Datos demo (cliente ficticio de prueba)
 docs/                   Arquitectura, seguridad, QA
 ```
 

@@ -1,4 +1,4 @@
-# Despliegue — Mundo Marítimo
+# Despliegue — Sistema Preoperacional
 
 ## Estado actual
 
@@ -46,8 +46,8 @@ y fijar la Production Branch, luego **Redeploy**.
 Abre la URL y comprueba:
 
 1. **/login** carga con la identidad visual.
-2. Admin: `admin@mundomaritimo.com` / `MundoMaritimo2026!` → `/admin` con KPIs reales.
-3. Operador: `operador@mundomaritimo.com` / `Kiosco2026!` → `/kiosco`.
+2. Admin: `admin@navierapacifico.com` / `Preoperacional2026!` → `/admin` con KPIs reales.
+3. Operador: `operador@navierapacifico.com` / `Kiosco2026!` → `/kiosco`.
 4. Flujo conductor: conductor + PIN (`Juan Pérez`/`1234`) → vehículo → datos →
    checklist → resumen → envío → resultado.
 5. Cambia las credenciales demo y los PIN antes de operar de verdad.
