@@ -237,7 +237,7 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
             </div>
             <div className="home2-status"><span className="home2-dot" />En línea</div>
           </div>
-          <div className="home2-hero" style={{ backgroundImage: "url('/home-hero.jpg')" }}>
+          <div className="home2-hero" style={{ backgroundImage: "url('/home-hero.png')" }}>
             <div className="home2-hero-caption"><span>Flota operativa</span><span className="tag">Preoperacional</span></div>
           </div>
           <div className="home2-cta">
