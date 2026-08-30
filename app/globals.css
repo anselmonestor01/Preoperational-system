@@ -2,5 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-@import "./styles/mm-a.css";
-@import "./styles/mm-b.css";
+@import "./styles/mm-0.css";
+@import "./styles/mm-1.css";
+@import "./styles/mm-2.css";
