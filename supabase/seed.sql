@@ -147,8 +147,11 @@ begin
     (v_org,'BCD-890','Camión de carga','active');
 
   -- ---- Conductores (PIN demo hasheado con bcrypt) ----------------------------
-  insert into public.drivers(organization_id,full_name,pin_hash,created_by)
-  select v_org, x.name, extensions.crypt(x.pin, extensions.gen_salt('bf')), v_admin
+  insert into public.drivers(organization_id,full_name,pin_hash,pin_encrypted,created_by)
+  select v_org, x.name,
+         extensions.crypt(x.pin, extensions.gen_salt('bf')),
+         extensions.pgp_sym_encrypt(x.pin, app.pin_key()),
+         v_admin
   from (values
     ('Juan Pérez','1234'),
     ('Carlos Rodríguez','2345'),
