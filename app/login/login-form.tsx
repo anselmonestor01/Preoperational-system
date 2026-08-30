@@ -22,7 +22,17 @@ export default function LoginForm() {
       password,
     });
     if (signErr || !signData.user) {
-      setError("Correo o contraseña incorrectos.");
+      if (signErr) console.error("[login] signInWithPassword:", signErr.message, signErr);
+      const msg = signErr?.message ?? "";
+      if (msg.toLowerCase().includes("invalid login credentials")) {
+        setError("Correo o contraseña incorrectos.");
+      } else if (msg.toLowerCase().includes("email not confirmed")) {
+        setError("Este correo aún no ha sido confirmado.");
+      } else if (msg.toLowerCase().includes("too many requests") || msg.toLowerCase().includes("rate limit")) {
+        setError("Demasiados intentos. Espera un minuto e inténtalo de nuevo.");
+      } else {
+        setError(signErr ? `No se pudo iniciar sesión: ${msg}` : "Correo o contraseña incorrectos.");
+      }
       setLoading(false);
       return;
     }
