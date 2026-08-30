@@ -1866,3 +1866,19 @@ a{color:inherit;text-decoration:none;}
 .pin-input:focus{border-color:var(--blue);outline:none;}
 /* hero del home con imagen (background-image en lugar de <img>) */
 .home2-hero{background-size:cover;background-position:center;}
+
+/* =========================================================
+   HOME KIOSCO — reparto vertical premium
+   El marco del kiosco tiene altura fija (escritorio) o 100vh
+   (móvil). Antes el contenido se agrupaba arriba y dejaba un
+   hueco muerto abajo. Ahora el hero crece para llenar el marco
+   (imagen cinematográfica) y el ritmo lo da un gap uniforme,
+   con la tarjeta de acción y las métricas ancladas abajo.
+   ========================================================= */
+.d-home2{ gap:18px; padding:22px 22px 22px; }
+.d-home2 > *{ margin:0 !important; }            /* el espaciado lo da gap */
+.home2-hero{ flex:1 1 auto; height:auto; min-height:210px; }
+.home2-cta{ padding:28px 26px 26px; }
+.home2-cta-title{ font-size:28px; }
+.home2-meta > span{ padding:16px 8px; }
+.home2-status{ white-space:nowrap; }
