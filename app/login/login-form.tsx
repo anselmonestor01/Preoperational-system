@@ -16,19 +16,23 @@ export default function LoginForm() {
     e.preventDefault();
     setError("");
     setLoading(true);
-    const { error: signErr } = await supabase.auth.signInWithPassword({
+    const { data: signData, error: signErr } = await supabase.auth.signInWithPassword({
       email: email.trim().toLowerCase(),
       password,
     });
-    if (signErr) {
+    if (signErr || !signData.user) {
       setError("Correo o contraseña incorrectos.");
       setLoading(false);
       return;
     }
-    // Determinar destino por rol.
+    // Determinar destino por rol — SIEMPRE acotado al propio usuario.
+    // RLS permite ver a todos los perfiles de la organización; sin filtrar por
+    // id la consulta devolvería varias filas y maybeSingle() fallaría (lo que
+    // se interpretaba erróneamente como "usuario no habilitado").
     const { data } = await supabase
       .from("profiles")
       .select("role,active")
+      .eq("id", signData.user.id)
       .maybeSingle();
     if (!data || !data.active) {
       setError("Su usuario no está habilitado. Contacte al administrador.");

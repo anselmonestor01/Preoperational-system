@@ -100,8 +100,9 @@ function VehicleForm({ vehicle, onClose, onSaved }: { vehicle: V | null; onClose
     let error;
     if (vehicle) ({ error } = await supabase.from("vehicles").update(payload).eq("id", vehicle.id));
     else {
-      const { data: prof } = await supabase.from("profiles").select("organization_id").maybeSingle();
-      ({ error } = await supabase.from("vehicles").insert({ ...payload, organization_id: prof?.organization_id }));
+      // organizations (RLS) devuelve exactamente la organización del usuario.
+      const { data: org } = await supabase.from("organizations").select("id").maybeSingle();
+      ({ error } = await supabase.from("vehicles").insert({ ...payload, organization_id: org?.id }));
     }
     setBusy(false);
     if (error) { setErr(error.message); return; }
