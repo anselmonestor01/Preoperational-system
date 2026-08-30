@@ -20,6 +20,8 @@
   --navy-70:#354867;
   --blue:#1E63E9;
   --blue-dark:#1247B8;
+  --acc:#1E63E9;
+  --acc-deep:#1247B8;
   --blue-soft:#EAF1FE;
   --blue-soft-2:#DCE9FC;
   --line:#E1E8F0;
@@ -979,8 +981,9 @@ img, svg, video, canvas { max-width: 100%; height: auto; }
   flex:1 1 100% !important;
 }
 
-/* When only one button (Siguiente), full width centered */
-.d-footer:has(.btn-primary:only-child),
+/* La barra de acciones nunca crece verticalmente (es un footer, no contenido) */
+.d-footer{ flex:0 0 auto !important; align-items:stretch !important; }
+/* Cuando hay un solo botón (p. ej. Siguiente), ocupa todo el ancho */
 .d-footer .btn-primary:only-child{
   width:100% !important;
   flex:1 1 100% !important;
@@ -1861,7 +1864,5 @@ a{color:inherit;text-decoration:none;}
 .sum-row .k{color:var(--muted);} .sum-row .v{font-weight:600;}
 .pin-input{width:100%;font-size:24px;letter-spacing:10px;text-align:center;padding:14px;border:1.5px solid var(--line);border-radius:12px;font-weight:700;color:var(--navy);}
 .pin-input:focus{border-color:var(--blue);outline:none;}
-/* hero del home con imagen */
+/* hero del home con imagen (background-image en lugar de <img>) */
 .home2-hero{background-size:cover;background-position:center;}
-.home2-hero::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(11,37,69,0) 40%,rgba(11,37,69,.55));}
-.home2-hero-caption{position:relative;z-index:1;}

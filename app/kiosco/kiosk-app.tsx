@@ -229,7 +229,7 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
     <div className="driver-shell">
       {/* HOME */}
       {step === "home" && (
-        <div className="d-body">
+        <div className="d-body d-home2">
           <div className="home2-header">
             <div>
               <div><span className="home2-brandtext"><span className="l1">MUNDO</span><span className="l2">MARÍTIMO</span></span></div>
