@@ -53,8 +53,13 @@ export default function AdminShell({
       <div className={"sidebar-scrim" + (open ? " show" : "")} onClick={() => setOpen(false)} />
       <aside className={"admin-sidebar" + (open ? " open" : "")}>
         <div className="sb-head">
-          <span className="l1">MUNDO</span><span className="l2">MARÍTIMO</span>
-          <div style={{ fontSize: 10.5, color: "rgba(255,255,255,.5)", marginTop: 3, letterSpacing: ".5px" }}>
+          <div className="brand on-dark">
+            <div className="brand-text">
+              <span className="l1">MUNDO</span>{" "}
+              <span className="l2">MARÍTIMO</span>
+            </div>
+          </div>
+          <div style={{ fontSize: 10.5, color: "rgba(255,255,255,.5)", marginTop: 6, letterSpacing: ".5px" }}>
             SISTEMA PREOPERACIONAL
           </div>
         </div>
