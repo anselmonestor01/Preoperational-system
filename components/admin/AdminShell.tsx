@@ -15,7 +15,6 @@ const NAV: { href: string; label: string; icon: JSX.Element; roles?: Role[] }[] 
   { href: "/admin/rondas", label: "Rondas", icon: ic("M21 12a9 9 0 11-3-6.7M21 4v4h-4") },
   { href: "/admin/reportes", label: "Reportes", icon: ic("M4 20V10M10 20V4M16 20v-7M4 20h16") },
   { href: "/admin/configuracion", label: "Configuración", icon: ic("M12 15a3 3 0 100-6 3 3 0 000 6z M19.4 13a7.9 7.9 0 000-2l2.1-1.6-2-3.4-2.5 1a8 8 0 00-1.7-1L14.9 3H9.1l-.4 2.9a8 8 0 00-1.7 1l-2.5-1-2 3.4L2.6 11a7.9 7.9 0 000 2l-2.1 1.6") },
-  { href: "/admin/auditoria", label: "Auditoría", icon: ic("M9 11l3 3L22 4M21 12v7a1 1 0 01-1 1H4a1 1 0 01-1-1V5a1 1 0 011-1h11"), roles: ["admin", "auditor", "superadmin"] },
 ];
 
 const TITLES: Record<string, [string, string]> = {
@@ -27,7 +26,6 @@ const TITLES: Record<string, [string, string]> = {
   "/admin/rondas": ["Rondas", "Control de rondas de inspección"],
   "/admin/reportes": ["Reportes", "Análisis y exportación de la operación"],
   "/admin/configuracion": ["Configuración", "Checklist, versiones y parámetros"],
-  "/admin/auditoria": ["Auditoría", "Registro inmutable de acciones críticas"],
 };
 
 function ic(d: string) {
@@ -50,49 +48,60 @@ export default function AdminShell({
 
   return (
     <div className="admin-shell">
-      <div className={"sidebar-scrim" + (open ? " show" : "")} onClick={() => setOpen(false)} />
       <aside className={"admin-sidebar" + (open ? " open" : "")}>
-        <div className="sb-head">
-          <div className="brand on-dark">
-            <div className="brand-text">
-              <span className="l1">MUNDO</span>{" "}
-              <span className="l2">MARÍTIMO</span>
-            </div>
+        <div className="sb-brand">
+          <div className="brand-mark" aria-hidden>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <path d="M3 15c2-1 4-1 6 0s4 1 6 0 4-1 6 0" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" />
+              <path d="M4 11c2.5-1.5 5-1.5 7.5 0S17 12.5 20 11" stroke="#7ec8ff" strokeWidth="1.6" strokeLinecap="round" />
+              <path d="M12 4v3M8 6.5l1.5 1.5M16 6.5L14.5 8" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
           </div>
-          <div style={{ fontSize: 10.5, color: "rgba(255,255,255,.5)", marginTop: 6, letterSpacing: ".5px" }}>
-            SISTEMA PREOPERACIONAL
+          <div className="brand-text on-dark">
+            <div className="l1">MUNDO</div>
+            <div className="l2">MARÍTIMO</div>
           </div>
         </div>
         <nav className="sb-nav">
-          {nav.map((n) => {
-            const active = n.href === "/admin" ? pathname === "/admin" : pathname.startsWith(n.href);
+          {nav.map((item) => {
+            const active = pathname === item.href || (item.href !== "/admin" && pathname.startsWith(item.href));
             return (
-              <Link key={n.href} href={n.href} className={"sb-link" + (active ? " active" : "")} onClick={() => setOpen(false)}>
-                {n.icon}{n.label}
+              <Link
+                key={item.href}
+                href={item.href}
+                className={"sb-link" + (active ? " active" : "")}
+                onClick={() => setOpen(false)}
+              >
+                <span className="sb-ic">{item.icon}</span>
+                {item.label}
               </Link>
             );
           })}
         </nav>
         <div className="sb-foot">
-          <div className="sb-avatar">{initials(name || "MM")}</div>
-          <div><div className="nm">{name || "Usuario"}</div><div className="rl" style={{ textTransform: "capitalize" }}>{role}</div></div>
-          <form action="/auth/signout" method="post" style={{ marginLeft: "auto" }}>
-            <button type="submit" className="sb-exit" title="Cerrar sesión">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
-            </button>
+          <div className="sb-user">
+            <div className="sb-avatar">{initials(name)}</div>
+            <div>
+              <div className="sb-user-name">{name}</div>
+              <div className="sb-user-role">{role}</div>
+            </div>
+          </div>
+          <form action="/auth/signout" method="post">
+            <button type="submit" className="sb-logout" title="Cerrar sesión">↗</button>
           </form>
         </div>
       </aside>
-
+      {open && <div className="admin-scrim" onClick={() => setOpen(false)} />}
       <div className="admin-main">
-        <div className="admin-topbar">
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <button className="hamburger" onClick={() => setOpen(true)} aria-label="Menú">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
-            </button>
-            <div><div className="at-title">{title}</div><div className="at-sub">{sub}</div></div>
+        <header className="admin-topbar">
+          <button type="button" className="admin-burger" onClick={() => setOpen(true)} aria-label="Menú">
+            <span /><span /><span />
+          </button>
+          <div>
+            <div className="admin-title">{title}</div>
+            <div className="admin-sub">{sub}</div>
           </div>
-        </div>
+        </header>
         <div className="admin-body">{children}</div>
       </div>
     </div>
