@@ -4,20 +4,20 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { fmtDateTime, fmtKm } from "@/lib/format";
+import { friendlyError } from "@/lib/errors";
+import EvidenceGallery from "@/components/EvidenceGallery";
 
-export default function InspectionActions({
-  id, status, authorized, operation,
-}: { id: string; status: string; authorized: boolean | null; operation: string }) {
+export default function InspectionActions({ id }: { id: string }) {
   const supabase = createClient();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [detail, setDetail] = useState<any>(null);
   const [answers, setAnswers] = useState<any[]>([]);
   const [issues, setIssues] = useState<any[]>([]);
-  const [evidence, setEvidence] = useState<Record<string, string[]>>({});
+  const [eviByIssue, setEviByIssue] = useState<Record<string, string[]>>({});
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState("");
-  const show = (m: string) => { setToast(m); setTimeout(() => setToast(""), 2600); };
+  const show = (m: string) => { setToast(m); setTimeout(() => setToast(""), 2800); };
 
   async function load() {
     setOpen(true);
@@ -27,16 +27,16 @@ export default function InspectionActions({
       supabase.from("issues").select("*").eq("inspection_id", id),
     ]);
     setDetail(insp); setAnswers(ans ?? []); setIssues(iss ?? []);
-    // Evidencias por novedad (signed URLs).
-    if (iss && iss.length) {
-      const { data: evs } = await supabase.from("issue_evidence").select("issue_id,storage_path").in("issue_id", iss.map((i: any) => i.id));
-      const map: Record<string, string[]> = {};
-      for (const e of evs ?? []) {
-        const { data: signed } = await supabase.storage.from("evidence").createSignedUrl(e.storage_path, 3600);
-        if (signed?.signedUrl) (map[e.issue_id] ??= []).push(signed.signedUrl);
-      }
-      setEvidence(map);
-    }
+    const { data: evs } = await supabase.from("issue_evidence").select("issue_id,storage_path").eq("inspection_id", id);
+    const paths = (evs ?? []).map((e) => e.storage_path);
+    if (paths.length) {
+      const { data: signed } = await supabase.storage.from("evidence").createSignedUrls(paths, 3600);
+      const map: Record<string, string> = {};
+      (signed ?? []).forEach((s) => { if (s.path && s.signedUrl) map[s.path] = s.signedUrl; });
+      const byIssue: Record<string, string[]> = {};
+      (evs ?? []).forEach((e) => { if (map[e.storage_path]) (byIssue[e.issue_id ?? "_"] ??= []).push(map[e.storage_path]); });
+      setEviByIssue(byIssue);
+    } else setEviByIssue({});
   }
 
   async function doOverride(authorize: boolean) {
@@ -45,7 +45,7 @@ export default function InspectionActions({
     setBusy(true);
     const { error } = await supabase.rpc("override_authorization", { p_inspection_id: id, p_authorize: authorize, p_reason: reason });
     setBusy(false);
-    if (error) return show(error.message);
+    if (error) return show(friendlyError(error, "No fue posible aplicar el override."));
     show("Override aplicado"); setOpen(false); router.refresh();
   }
   async function doVoid() {
@@ -54,15 +54,15 @@ export default function InspectionActions({
     setBusy(true);
     const { error } = await supabase.rpc("void_inspection", { p_inspection_id: id, p_reason: reason });
     setBusy(false);
-    if (error) return show(error.message);
+    if (error) return show(friendlyError(error, "No fue posible anular."));
     show("Inspección anulada"); setOpen(false); router.refresh();
   }
   async function doRelease() {
-    if (!window.confirm("¿Liberar el vehículo para re-inspección en esta ronda? La inspección se conserva en el histórico.")) return;
+    if (!window.confirm("¿Liberar el vehículo para re-inspección en esta ronda? La inspección se conserva.")) return;
     setBusy(true);
     const { error } = await supabase.rpc("release_inspection", { p_inspection_id: id });
     setBusy(false);
-    if (error) return show(error.message);
+    if (error) return show(friendlyError(error, "No fue posible liberar."));
     show("Vehículo liberado"); setOpen(false); router.refresh();
   }
 
@@ -72,82 +72,71 @@ export default function InspectionActions({
     <>
       <button className="btn btn-ghost btn-sm" onClick={load}>Detalle</button>
       {open && (
-        <div className="drawer-scrim" onClick={(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
-          <div className="drawer">
-            <div className="drawer-head">
-              <div><div style={{ fontWeight: 700, fontSize: 18 }}>{detail?.vehicle_plate ?? "…"}</div>
+        <div className="overlay show" onClick={(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
+          <div className="sheet wide">
+            <div className="sheet-head">
+              <div><div className="sheet-title">{detail?.vehicle_plate ?? "…"}</div>
                 <div className="cell-sub">{detail?.driver_name} · {fmtDateTime(detail?.submitted_at)}</div></div>
               <button className="sheet-close" onClick={() => setOpen(false)}>✕</button>
             </div>
-            <div className="drawer-body">
-              {!detail ? <div className="spinner" /> : (<>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
-                  {detail.status === "voided" ? <span className="badge neutral">Anulada</span>
-                    : detail.authorized === false ? <span className="result-pill bad">NO AUTORIZADO</span>
+            {!detail ? <div className="spinner" /> : (<>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
+                {detail.status === "voided" ? <span className="badge neutral">Anulada</span>
+                  : detail.authorized === false ? <span className="result-pill bad">NO AUTORIZADO</span>
                     : <span className="result-pill ok">AUTORIZADO</span>}
-                  <span className={"result-pill " + (detail.result === "bueno" ? "ok" : detail.result === "regular" ? "warn" : "bad")}>{detail.result}</span>
+                <span className={"result-pill " + (detail.result === "bueno" ? "ok" : detail.result === "regular" ? "warn" : "bad")}>{detail.result}</span>
+              </div>
+
+              <div className="summary-card">
+                <div className="summary-row"><span className="cell-sub">Km inicial</span><span>{fmtKm(detail.km_inicial)}</span></div>
+                <div className="summary-row"><span className="cell-sub">Km final</span><span>{fmtKm(detail.km_final)}</span></div>
+                <div className="summary-row"><span className="cell-sub">Recorrido</span><span>{detail.recorrido != null ? fmtKm(detail.recorrido) : "—"}</span></div>
+                <div className="summary-row"><span className="cell-sub">Combustible</span><span>{detail.fuel_in ?? "—"}{detail.fuel_out ? ` → ${detail.fuel_out}` : ""}</span></div>
+                <div className="summary-row"><span className="cell-sub">Resumen checklist</span><span>{detail.ok_count} ok · {detail.warn_count} reg · {detail.bad_count} malo</span></div>
+                <div className="summary-row"><span className="cell-sub">Versión checklist</span><span>v{detail.checklist_version_number}</span></div>
+              </div>
+              {detail.obs_general ? <div style={{ margin: "10px 0", fontSize: 13 }}><b>Observaciones:</b> {detail.obs_general}</div> : null}
+
+              {Array.isArray(detail.auth_reasons) && detail.auth_reasons.length > 0 && (
+                <div className="err-box" style={{ marginTop: 12 }}>
+                  <b>Razones de no autorización:</b>
+                  <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
+                    {detail.auth_reasons.map((r: any, i: number) => <li key={i}>{typeof r === "string" ? r : JSON.stringify(r)}</li>)}
+                  </ul>
                 </div>
+              )}
 
-                <div className="panel" style={{ padding: 16 }}>
-                  <div className="sum-row"><span className="k">Ronda</span><span className="v">#{detail.round_id ? "—" : "—"} · v{detail.checklist_version_number}</span></div>
-                  <div className="sum-row"><span className="k">Km inicial</span><span className="v">{fmtKm(detail.km_inicial)}</span></div>
-                  <div className="sum-row"><span className="k">Km final</span><span className="v">{fmtKm(detail.km_final)}</span></div>
-                  <div className="sum-row"><span className="k">Recorrido</span><span className="v">{detail.recorrido != null ? fmtKm(detail.recorrido) : "—"}</span></div>
-                  <div className="sum-row"><span className="k">Combustible</span><span className="v">{detail.fuel_in ?? "—"}{detail.fuel_out ? ` → ${detail.fuel_out}` : ""}</span></div>
-                  <div className="sum-row"><span className="k">Resumen</span><span className="v">{detail.ok_count} ok · {detail.warn_count} reg · {detail.bad_count} malo</span></div>
-                  {detail.obs_general && <div style={{ marginTop: 8, fontSize: 13 }}><b>Obs:</b> {detail.obs_general}</div>}
-                </div>
-
-                {Array.isArray(detail.auth_reasons) && detail.auth_reasons.length > 0 && (
-                  <div className="error-box" style={{ marginTop: 12 }}>
-                    <b>Razones de no autorización:</b>
-                    <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
-                      {detail.auth_reasons.map((r: any, i: number) => <li key={i}>{typeof r === "string" ? r : JSON.stringify(r)}</li>)}
-                    </ul>
-                  </div>
-                )}
-
-                {issues.length > 0 && (
-                  <div style={{ marginTop: 16 }}>
-                    <div className="panel-title">Novedades ({issues.length})</div>
-                    {issues.map((i) => (
-                      <div key={i.id} className="panel" style={{ padding: 14, marginTop: 8 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between" }}>
-                          <b>{i.item_name}</b>{sevBadge(i.severity)}
-                        </div>
-                        <div style={{ fontSize: 13, marginTop: 4 }}>{i.description || "Sin detalle"}</div>
-                        {evidence[i.id]?.length ? (
-                          <div className="evidence-row" style={{ marginTop: 8 }}>
-                            {evidence[i.id].map((u, k) => <img key={k} src={u} alt="" className="evidence-thumb" />)}
-                          </div>
-                        ) : null}
+              {issues.length > 0 && (
+                <div style={{ marginTop: 16 }}>
+                  <div className="panel-title" style={{ marginBottom: 8 }}>Novedades ({issues.length})</div>
+                  {issues.map((i) => (
+                    <div key={i.id} className="issue-card" style={{ marginBottom: 8 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                        <b>{i.item_name}</b>{sevBadge(i.severity)}
                       </div>
-                    ))}
-                  </div>
-                )}
-
-                <details style={{ marginTop: 16 }}>
-                  <summary style={{ cursor: "pointer", fontWeight: 600 }}>Respuestas del checklist ({answers.length})</summary>
-                  <div style={{ marginTop: 8 }}>
-                    {answers.map((a) => (
-                      <div key={a.id} className="sum-row"><span className="k">{a.item_name}</span>
-                        <span className="v">{a.value} {sevBadge(a.severity)}</span></div>
-                    ))}
-                  </div>
-                </details>
-
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 20 }}>
-                  {detail.status !== "voided" && detail.authorized === false &&
-                    <button className="btn btn-success btn-sm" disabled={busy} onClick={() => doOverride(true)}>Override: Autorizar</button>}
-                  {detail.status !== "voided" && detail.authorized === true &&
-                    <button className="btn btn-danger btn-sm" disabled={busy} onClick={() => doOverride(false)}>Override: Rechazar</button>}
-                  {detail.status !== "voided" &&
-                    <button className="btn btn-ghost btn-sm" disabled={busy} onClick={doRelease}>Liberar vehículo</button>}
-                  {detail.status !== "voided" &&
-                    <button className="btn btn-danger btn-sm" disabled={busy} onClick={doVoid}>Anular</button>}
+                      <div style={{ fontSize: 13, margin: "4px 0 8px" }}>{i.description || "Sin detalle"}</div>
+                      <EvidenceGallery urls={eviByIssue[i.id] ?? []} size={72} empty="Sin evidencia" />
+                    </div>
+                  ))}
                 </div>
-              </>)}
-            </div>
+              )}
+
+              <details style={{ marginTop: 16 }}>
+                <summary style={{ cursor: "pointer", fontWeight: 600 }}>Respuestas del checklist ({answers.length})</summary>
+                <div style={{ marginTop: 8 }}>
+                  {answers.map((a) => (
+                    <div key={a.id} className="summary-row"><span className="cell-sub">{a.item_name}</span><span>{a.value} {sevBadge(a.severity)}</span></div>
+                  ))}
+                </div>
+              </details>
+
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 20 }}>
+                {detail.status !== "voided" && detail.authorized === false && <button className="btn btn-success btn-sm" disabled={busy} onClick={() => doOverride(true)}>Override: Autorizar</button>}
+                {detail.status !== "voided" && detail.authorized === true && <button className="btn btn-danger btn-sm" disabled={busy} onClick={() => doOverride(false)}>Override: Rechazar</button>}
+                {detail.status !== "voided" && <button className="btn btn-ghost btn-sm" disabled={busy} onClick={doRelease}>Liberar vehículo</button>}
+                {detail.status !== "voided" && <button className="btn btn-danger btn-sm" disabled={busy} onClick={doVoid}>Anular</button>}
+              </div>
+            </>)}
           </div>
         </div>
       )}

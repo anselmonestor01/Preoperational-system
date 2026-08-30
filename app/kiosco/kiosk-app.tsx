@@ -9,8 +9,8 @@ import type { AnswerPayload, ItemType, Severity } from "@/lib/types";
 type Step = "home" | "driver" | "vehicle" | "datos" | "inspect" | "summary" | "final";
 type CItem = { id: string; name: string; item_type: ItemType; is_safety_critical: boolean };
 type CCat = { key: string; name: string; icon: string; items: CItem[] };
-type Veh = { id: string; plate: string; status: string; admin_blocked: boolean; admin_block_reason: string | null };
-type Drv = { id: string; full_name: string; photo_path: string | null };
+type Veh = { id: string; plate: string; availability: string; admin_block_reason: string | null; open_issue_count: number };
+type Drv = { id: string; full_name: string; photo_path: string | null; photoUrl?: string | null };
 type OpenOp = { id: string; vehicle_plate: string | null; driver_name: string | null; km_inicial: number | null };
 
 export default function KioskApp({ orgId }: { profileName: string; orgId: string }) {
@@ -21,8 +21,6 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
   const [checklist, setChecklist] = useState<CCat[]>([]);
   const [drivers, setDrivers] = useState<Drv[]>([]);
   const [vehicles, setVehicles] = useState<Veh[]>([]);
-  const [issuesBy, setIssuesBy] = useState<Record<string, number>>({});
-  const [inspected, setInspected] = useState<Set<string>>(new Set());
   const [openOps, setOpenOps] = useState<OpenOp[]>([]);
 
   const [step, setStep] = useState<Step>("home");
@@ -46,40 +44,42 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
   }, []);
 
   const loadData = useCallback(async () => {
-    const [{ data: boot }, cats, drv, veh, iss, insp, ops] = await Promise.all([
+    const [{ data: boot }, cats, drv, veh, ops] = await Promise.all([
       supabase.rpc("app_bootstrap"),
       supabase.from("checklist_versions").select("structure").eq("active", true).maybeSingle(),
       supabase.from("drivers").select("id,full_name,photo_path").eq("active", true).order("full_name"),
-      supabase.from("vehicles").select("id,plate,status,admin_blocked,admin_block_reason").eq("status", "active").order("plate"),
-      supabase.from("issues").select("vehicle_id").neq("status", "resolved"),
-      supabase.from("inspections").select("vehicle_id,round_id,status,released"),
+      supabase.from("vehicle_status_view").select("id,plate,availability,admin_block_reason,open_issue_count").eq("status", "active").order("plate"),
       supabase.from("inspections").select("id,vehicle_plate,driver_name,km_inicial").eq("operation_status", "open"),
     ]);
     const activeRound = boot?.active_round ? { id: boot.active_round.id, label: boot.active_round.label } : null;
     setRound(activeRound);
     setChecklist((cats?.data?.structure as CCat[]) ?? []);
-    setDrivers((drv.data as Drv[]) ?? []);
+    // Fotos de conductor (URLs firmadas del bucket privado).
+    const dRows = ((drv.data as Drv[]) ?? []);
+    const dPaths = dRows.filter((d) => d.photo_path).map((d) => d.photo_path!) as string[];
+    if (dPaths.length) {
+      const { data: signed } = await supabase.storage.from("driver-photos").createSignedUrls(dPaths, 3600);
+      const map: Record<string, string> = {};
+      (signed ?? []).forEach((s) => { if (s.path && s.signedUrl) map[s.path] = s.signedUrl; });
+      dRows.forEach((d) => { d.photoUrl = d.photo_path ? map[d.photo_path] ?? null : null; });
+    }
+    setDrivers(dRows);
     setVehicles((veh.data as Veh[]) ?? []);
-    const im: Record<string, number> = {};
-    (iss.data ?? []).forEach((r: any) => { im[r.vehicle_id] = (im[r.vehicle_id] ?? 0) + 1; });
-    setIssuesBy(im);
-    const set = new Set<string>();
-    (insp.data ?? []).forEach((r: any) => {
-      if (activeRound && r.round_id === activeRound.id && !r.released &&
-          ["submitted", "authorized", "rejected", "closed"].includes(r.status)) set.add(r.vehicle_id);
-    });
-    setInspected(set);
     setOpenOps((ops.data as OpenOp[]) ?? []);
     setLoading(false);
   }, [supabase]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  // Estado de bloqueo desde la VISTA ÚNICA de verdad (coincide con el panel admin).
   function vehBlock(v: Veh): { label: string; detail: string } | null {
-    if (v.admin_blocked) return { label: "Bloqueado por administración", detail: v.admin_block_reason || "Sin motivo" };
-    if (issuesBy[v.id]) return { label: "Novedades pendientes", detail: `${issuesBy[v.id]} sin resolver` };
-    if (inspected.has(v.id)) return { label: "Ya inspeccionado en esta ronda", detail: round?.label || "" };
-    return null;
+    switch (v.availability) {
+      case "admin_blocked": return { label: "Bloqueado por administración", detail: v.admin_block_reason || "Sin motivo" };
+      case "issues": return { label: "Novedades pendientes", detail: `${v.open_issue_count} sin resolver` };
+      case "inspected": return { label: "Ya inspeccionado en esta ronda", detail: round?.label || "" };
+      case "out_of_service": return { label: "Fuera de servicio", detail: "" };
+      default: return null;
+    }
   }
 
   function resetFlow() {
@@ -237,7 +237,7 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
             </div>
             <div className="home2-status"><span className="home2-dot" />En línea</div>
           </div>
-          <div className="home2-hero">
+          <div className="home2-hero" style={{ backgroundImage: "url('/home-hero.jpg')" }}>
             <div className="home2-hero-caption"><span>Flota operativa</span><span className="tag">Preoperacional</span></div>
           </div>
           <div className="home2-cta">
@@ -278,7 +278,7 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
                 const sel = driver?.id === d.id;
                 return (
                   <div key={d.id} className={"pick-row" + (sel ? " selected" : "")} onClick={() => setPinFor(d)}>
-                    <div className="pick-avatar">{d.photo_path ? "👤" : initials(d.full_name)}</div>
+                    <div className="pick-avatar">{d.photoUrl ? <img src={d.photoUrl} alt="" className="drv-photo" /> : initials(d.full_name)}</div>
                     <div className="pick-main"><div className="pick-name">{d.full_name}</div>
                       <div className="pick-sub">{sel ? "Identidad verificada con PIN" : "Toca para verificar con tu PIN"}</div></div>
                     <div className="pick-check">{sel ? "✓" : ""}</div>
