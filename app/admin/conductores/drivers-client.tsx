@@ -19,15 +19,10 @@ export default function DriversClient({ initial }: { initial: Driver[] }) {
   const list = initial.filter((d) => d.full_name.toLowerCase().includes(q.toLowerCase()));
 
   async function deleteDriver(d: Driver) {
-    if (!window.confirm(`¿Eliminar definitivamente a ${d.full_name}?\n\nSi tiene inspecciones asociadas se desactivará en su lugar (historial intacto).`)) return;
-    const { error } = await supabase.from("drivers").delete().eq("id", d.id);
-    if (error) {
-      const { error: e2 } = await supabase.from("drivers").update({ active: false }).eq("id", d.id);
-      if (e2) return show(e2.message);
-      show(`${d.full_name} desactivado (tiene historial)`);
-    } else {
-      show(`${d.full_name} eliminado`);
-    }
+    if (!window.confirm(`¿Eliminar a ${d.full_name} de la lista de conductores?\n\nDejará de aparecer en el kiosco y en este panel. El historial de inspecciones se conserva.`)) return;
+    const { error } = await supabase.from("drivers").update({ active: false }).eq("id", d.id);
+    if (error) return show(error.message);
+    show(`${d.full_name} eliminado de la lista`);
     router.refresh();
   }
 
