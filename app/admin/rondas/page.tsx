@@ -11,7 +11,6 @@ export default async function RondasPage() {
     .order("round_number", { ascending: false }).limit(50);
   const open = (rounds ?? []).find((r) => r.status === "open") ?? null;
 
-  // Inspecciones de la ronda abierta.
   let inRound = 0;
   if (open) {
     const { count } = await supabase.from("inspections").select("*", { count: "exact", head: true })
@@ -33,7 +32,12 @@ export default async function RondasPage() {
           </div>
         ) : (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-            <div className="cell-sub">No hay ronda abierta.</div>
+            <div>
+              <div style={{ fontWeight: 700, color: "var(--orange)" }}>No hay ronda abierta</div>
+              <div className="cell-sub" style={{ marginTop: 4 }}>
+                El kiosco de conductores está bloqueado hasta que abra una ronda nueva.
+              </div>
+            </div>
             <RoundsClient hasOpen={false} />
           </div>
         )}
@@ -42,7 +46,7 @@ export default async function RondasPage() {
       <div className="panel">
         <div className="panel-title">Historial de rondas</div>
         <div className="tbl-wrap" style={{ marginTop: 12 }}>
-          <table className="tbl">
+          <table className="data-table">
             <thead><tr><th>#</th><th>Ronda</th><th>Estado</th><th>Inicio</th><th>Cierre</th></tr></thead>
             <tbody>
               {(rounds ?? []).map((r) => (
