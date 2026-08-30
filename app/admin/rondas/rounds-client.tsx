@@ -37,8 +37,9 @@ export default function RoundsClient({ hasOpen }: { hasOpen: boolean }) {
       if (!ok) return;
     }
     setBusy(true);
+    // p_label debe ser text (string). Vacío = nombre automático en el RPC.
     const { data, error } = await supabase.rpc("start_round", {
-      p_label: label.trim() || null,
+      p_label: label.trim(),
     });
     setBusy(false);
     if (error) {
