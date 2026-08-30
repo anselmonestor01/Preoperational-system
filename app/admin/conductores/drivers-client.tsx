@@ -18,6 +18,19 @@ export default function DriversClient({ initial }: { initial: Driver[] }) {
   const show = (m: string) => { setToast(m); setTimeout(() => setToast(""), 2600); };
   const list = initial.filter((d) => d.full_name.toLowerCase().includes(q.toLowerCase()));
 
+  async function deleteDriver(d: Driver) {
+    if (!window.confirm(`¿Eliminar definitivamente a ${d.full_name}?\n\nSi tiene inspecciones asociadas se desactivará en su lugar (historial intacto).`)) return;
+    const { error } = await supabase.from("drivers").delete().eq("id", d.id);
+    if (error) {
+      const { error: e2 } = await supabase.from("drivers").update({ active: false }).eq("id", d.id);
+      if (e2) return show(e2.message);
+      show(`${d.full_name} desactivado (tiene historial)`);
+    } else {
+      show(`${d.full_name} eliminado`);
+    }
+    router.refresh();
+  }
+
   async function toggleActive(d: Driver) {
     if (!window.confirm(`${d.active ? "Desactivar" : "Activar"} a ${d.full_name}?`)) return;
     const { error } = await supabase.from("drivers").update({ active: !d.active }).eq("id", d.id);
@@ -32,7 +45,7 @@ export default function DriversClient({ initial }: { initial: Driver[] }) {
         <button className="btn btn-primary btn-sm" onClick={() => setCreating(true)}>+ Nuevo conductor</button>
       </div>
       <div className="tbl-wrap">
-        <table className="tbl">
+        <table className="data-table">
           <thead><tr><th>Conductor</th><th>Licencia</th><th>WhatsApp</th><th>Estado</th><th></th></tr></thead>
           <tbody>
             {list.map((d) => (
@@ -47,7 +60,8 @@ export default function DriversClient({ initial }: { initial: Driver[] }) {
                   <button className="btn btn-ghost btn-sm" onClick={() => setEdit(d)}>Editar</button>{" "}
                   <button className="btn btn-ghost btn-sm" onClick={() => setPinFor(d)}>PIN</button>{" "}
                   <button className={"btn btn-sm " + (d.active ? "btn-danger" : "btn-success")} onClick={() => toggleActive(d)}>
-                    {d.active ? "Desactivar" : "Activar"}</button>
+                    {d.active ? "Desactivar" : "Activar"}</button>{" "}
+                  <button className="btn btn-ghost btn-sm" onClick={() => deleteDriver(d)}>Eliminar</button>
                 </td>
               </tr>
             ))}

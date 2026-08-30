@@ -20,6 +20,16 @@ export default function VehiclesClient({ initial, openBy }: { initial: V[]; open
   const show = (m: string) => { setToast(m); setTimeout(() => setToast(""), 2600); };
   const list = initial.filter((v) => v.plate.toLowerCase().includes(q.toLowerCase()));
 
+  async function archiveVehicle(v: V) {
+    if (!window.confirm(`¿Retirar el vehículo ${v.plate} de la flota activa?\n\nLas inspecciones históricas se conservan. El vehículo dejará de aparecer en el kiosco.`)) return;
+    setBusy(true);
+    const { error } = await supabase.from("vehicles").update({ status: "archived", admin_blocked: true, admin_block_reason: "Retirado de la flota" }).eq("id", v.id);
+    setBusy(false);
+    if (error) return show(error.message);
+    show(`${v.plate} retirado de la flota`);
+    router.refresh();
+  }
+
   async function toggleBlock(v: V) {
     let reason = "";
     if (!v.admin_blocked) {
@@ -44,7 +54,7 @@ export default function VehiclesClient({ initial, openBy }: { initial: V[]; open
       </div>
 
       <div className="tbl-wrap">
-        <table className="tbl">
+        <table className="data-table">
           <thead><tr><th>Placa</th><th>Modelo</th><th>Estado</th><th>Documentos</th><th>Novedades</th><th></th></tr></thead>
           <tbody>
             {list.map((v) => (
@@ -66,7 +76,12 @@ export default function VehiclesClient({ initial, openBy }: { initial: V[]; open
                   <button className="btn btn-ghost btn-sm" onClick={() => setEdit(v)}>Editar</button>{" "}
                   <button className={"btn btn-sm " + (v.admin_blocked ? "btn-success" : "btn-danger")} disabled={busy} onClick={() => toggleBlock(v)}>
                     {v.admin_blocked ? "Desbloquear" : "Bloquear"}
-                  </button>
+                  </button>{" "}
+                  {v.status === "active" && (
+                    <button className="btn btn-ghost btn-sm" disabled={busy} onClick={() => archiveVehicle(v)} title="Retirar de la flota">
+                      Eliminar
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}
@@ -100,7 +115,6 @@ function VehicleForm({ vehicle, onClose, onSaved }: { vehicle: V | null; onClose
     let error;
     if (vehicle) ({ error } = await supabase.from("vehicles").update(payload).eq("id", vehicle.id));
     else {
-      // organizations (RLS) devuelve exactamente la organización del usuario.
       const { data: org } = await supabase.from("organizations").select("id").maybeSingle();
       ({ error } = await supabase.from("vehicles").insert({ ...payload, organization_id: org?.id }));
     }
