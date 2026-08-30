@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import "./home-hero.css";
 
 export const metadata: Metadata = {
   title: "Mundo Marítimo — Sistema Preoperacional",
