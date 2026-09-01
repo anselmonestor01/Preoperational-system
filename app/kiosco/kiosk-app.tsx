@@ -250,7 +250,7 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
             </button>
           </div>
 
-          <form action="/auth/signout" method="post" style={{ marginTop: "auto" }}>
+          <form action="/auth/signout" method="post" className="push-bottom">
             <button type="submit" className="home2-admin">Cerrar sesión del kiosco</button>
           </form>
         </div>

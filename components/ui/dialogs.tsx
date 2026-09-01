@@ -13,7 +13,7 @@
 //   const nota = await dialog.prompt({ title: "…", label: "Motivo" });
 //   const clave = await dialog.confirmWithPassword({ title: "…" });
 
-import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 type Tone = "default" | "danger";
 
@@ -110,6 +110,16 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
     close(state?.kind === "confirm" ? true : value);
   }
 
+  // Escape cierra el diálogo. Se escucha en el documento porque en un diálogo de
+  // confirmación no hay ningún campo enfocado desde el que la tecla pueda burbujear.
+  useEffect(() => {
+    if (!state) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") cancel(); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
+
   const danger = state?.tone === "danger";
 
   return (
@@ -199,6 +209,9 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
                 className={"btn " + (danger ? "btn-danger" : "btn-primary")}
                 disabled={!canConfirm}
                 onClick={accept}
+                /* Sin campo que enfocar, el foco va al botón para que el
+                   diálogo sea operable con teclado. */
+                autoFocus={state.kind === "confirm"}
               >
                 {state.confirmLabel ?? "Confirmar"}
               </button>

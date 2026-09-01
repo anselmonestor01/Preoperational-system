@@ -1877,6 +1877,9 @@ a{color:inherit;text-decoration:none;}
    ========================================================= */
 .d-home2{ gap:18px; padding:22px 22px 22px; }
 .d-home2 > *{ margin:0 !important; }            /* el espaciado lo da gap */
+/* Ancla un elemento al fondo del home. Necesita !important porque la regla de
+   arriba anula cualquier margen (incluidos los estilos en línea). */
+.d-home2 > .push-bottom{ margin-top:auto !important; }
 .home2-hero{ flex:1 1 auto; height:auto; min-height:210px; }
 .home2-cta{ padding:28px 26px 26px; }
 .home2-cta-title{ font-size:28px; }
