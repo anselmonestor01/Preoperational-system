@@ -33,8 +33,12 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
+  // Rutas accesibles sin sesión. Recuperar y restablecer contraseña TIENEN que
+  // serlo: quien llega ahí precisamente no puede iniciar sesión todavía.
   const isPublic =
     path === "/login" ||
+    path === "/recuperar" ||
+    path === "/restablecer" ||
     path.startsWith("/_next") ||
     path.startsWith("/favicon") ||
     path === "/auth/callback";

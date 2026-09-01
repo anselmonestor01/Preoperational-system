@@ -1941,6 +1941,35 @@ input::placeholder, textarea::placeholder{ color:var(--muted); opacity:1; }
 .btn-danger:hover{ background:#A9332E; transform:translateY(-1px); }
 .btn-danger:disabled{ background:#E0B3B0; box-shadow:none; cursor:not-allowed; transform:none; }
 
+/* =========================================================
+   MODO SIN CONEXIÓN
+   ========================================================= */
+/* Estado del badge de conexión. Naranja = sin señal, azul = sincronizando.
+   Nunca verde: verde significaría "todo enviado", y no lo está. */
+.home2-status.conn-off{ background:var(--orange-soft); color:var(--orange); }
+.home2-status.conn-off .home2-dot{
+  background:var(--orange); box-shadow:0 0 0 3px rgba(201,122,26,.18); animation:none;
+}
+.home2-status.conn-sync{ background:var(--blue-soft); color:var(--blue); }
+.home2-status.conn-sync .home2-dot{ background:var(--blue); box-shadow:0 0 0 3px rgba(30,99,233,.18); }
+
+/* Aviso de inspección a medio hacer recuperada del dispositivo. */
+.draft-resume{
+  display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+  background:#fff; border:1px solid rgba(201,122,26,.28);
+  border-left:4px solid var(--orange);
+  border-radius:14px; padding:14px 16px;
+  box-shadow:0 6px 18px rgba(11,37,69,.06);
+}
+.draft-resume-title{ font-weight:700; font-size:14px; color:var(--navy); }
+
+/* Enlace secundario bajo el botón de acceso (recuperar contraseña). */
+.login-link{
+  display:block; text-align:center; margin-top:14px;
+  font-size:13px; font-weight:600; color:var(--blue); text-decoration:none;
+}
+.login-link:hover{ text-decoration:underline; }
+
 /* Campo de contraseña con botón "mostrar / ocultar". */
 .pw-field{ position:relative; display:flex; align-items:center; }
 .pw-field .manage-input{ padding-right:82px; }

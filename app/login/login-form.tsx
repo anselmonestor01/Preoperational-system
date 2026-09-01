@@ -6,6 +6,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { friendlyError } from "@/lib/errors";
 
@@ -88,6 +89,7 @@ export default function LoginForm() {
         <button className="btn btn-primary btn-block" disabled={loading} type="submit">
           {loading ? "Ingresando…" : "Ingresar"}
         </button>
+        <Link href="/recuperar" className="login-link">¿Olvidaste tu contraseña?</Link>
       </form>
     </div>
   );

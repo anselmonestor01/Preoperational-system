@@ -10,6 +10,12 @@ import { createClient } from "@/lib/supabase/client";
 import { optionsFor, severityOf, previewResult } from "@/lib/checklist";
 import { fmtKm, initials } from "@/lib/format";
 import { compressImage, EVIDENCE_PRESET } from "@/lib/image";
+import { friendlyError } from "@/lib/errors";
+import {
+  encolar, leerCola, desencolar, marcarIntento, esErrorDeRed,
+  guardarBorrador, leerBorrador, borrarBorrador,
+} from "@/lib/offline";
+import OfflineBadge, { useEstadoConexion, usePendientes } from "@/components/OfflineBadge";
 import type { AnswerPayload, ItemType, Severity } from "@/lib/types";
 
 type Step = "home" | "driver" | "vehicle" | "datos" | "inspect" | "summary" | "final";
@@ -43,7 +49,13 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
   const [submitting, setSubmitting] = useState(false);
 
   const [toast, setToast] = useState("");
+  const [sincronizando, setSincronizando] = useState(false);
+  const [colaVersion, setColaVersion] = useState(0);
   const idemRef = useRef<string>("");
+
+  // Conexión y cola de envío (modo sin señal).
+  const enLinea = useEstadoConexion();
+  const pendientes = usePendientes(colaVersion);
   const showToast = useCallback((m: string) => {
     setToast(m);
     setTimeout(() => setToast(""), 2600);
@@ -76,6 +88,45 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
   }, [supabase]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Autoguardado LOCAL del borrador. Es distinto del borrador del servidor:
+  // este sobrevive a la pérdida de señal y al cierre de la aplicación.
+  useEffect(() => {
+    if (step === "home" || step === "final") return;
+    const t = setTimeout(() => {
+      guardarBorrador({
+        step, driver, vehicle, catIndex, answers,
+        kmInicial, fuelIn, obs,
+        roundId: round?.id ?? null,
+        savedAt: Date.now(),
+      }).catch(() => {});
+    }, 800);
+    return () => clearTimeout(t);
+  }, [step, driver, vehicle, catIndex, answers, kmInicial, fuelIn, obs, round]);
+
+  // Recuperación del borrador tras cerrar la aplicación a medio checklist.
+  const [borradorPrevio, setBorradorPrevio] = useState<Awaited<ReturnType<typeof leerBorrador>>>(null);
+  useEffect(() => {
+    if (loading || !round) return;
+    leerBorrador().then((b) => {
+      // Sólo se ofrece si es de la ronda vigente: un borrador de otra ronda ya
+      // no es válido para la operación de hoy.
+      if (b && b.roundId === round.id && b.driver && b.vehicle) setBorradorPrevio(b);
+    });
+  }, [loading, round]);
+
+  function retomarBorrador() {
+    const b = borradorPrevio;
+    if (!b) return;
+    setDriver(b.driver); setVehicle(b.vehicle); setCatIndex(b.catIndex);
+    setAnswers(b.answers); setKmInicial(b.kmInicial); setFuelIn(b.fuelIn); setObs(b.obs);
+    setStep(b.step as Step);
+    setBorradorPrevio(null);
+  }
+  function descartarBorrador() {
+    borrarBorrador().catch(() => {});
+    setBorradorPrevio(null);
+  }
 
   // Estado de bloqueo desde la VISTA ÚNICA de verdad (coincide con el panel admin).
   function vehBlock(v: Veh): { label: string; detail: string } | null {
@@ -186,6 +237,9 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
   async function submit() {
     if (!driver || !vehicle || submitting) return;
     setSubmitting(true);
+    // La clave de idempotencia se fija ANTES del primer intento: si hay que
+    // reenviar (sin señal, o pestaña cerrada a medias), el servidor reconoce que
+    // es la misma inspección y no la duplica.
     if (!idemRef.current) idemRef.current = `${vehicle.id}:${round?.id}:${crypto.randomUUID()}`;
     const payload = buildAnswers(checklist, answers, issues);
     const { data, error } = await supabase.rpc("submit_inspection", {
@@ -193,12 +247,82 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
       p_km_inicial: kmInicial ? Number(kmInicial) : null, p_fuel_in: fuelIn,
       p_obs: obs, p_idempotency_key: idemRef.current,
     });
+
+    if (error) {
+      // Sin señal: la inspección NO se pierde, queda en cola en el dispositivo.
+      if (esErrorDeRed(error)) {
+        try {
+          await encolar({
+            idempotencyKey: idemRef.current,
+            vehicleId: vehicle.id, driverId: driver.id,
+            vehiclePlate: vehicle.plate, driverName: driver.name,
+            answers: payload,
+            kmInicial: kmInicial ? Number(kmInicial) : null,
+            fuelIn, obs,
+            photos: [],
+            createdAt: Date.now(), intentos: 1,
+            ultimoError: error.message,
+          });
+          await borrarBorrador();
+          setSubmitting(false);
+          setResult({ encolada: true });
+          setStep("final");
+          return;
+        } catch {
+          setSubmitting(false);
+          showToast("Sin señal y no se pudo guardar en el dispositivo. No cierres la aplicación.");
+          return;
+        }
+      }
+      // Rechazo del servidor (p. ej. vehículo bloqueado): no se reintenta.
+      setSubmitting(false);
+      showToast(friendlyError(error, "Error al registrar la inspección"));
+      return;
+    }
+
     setSubmitting(false);
-    if (error) { showToast(error.message || "Error al registrar la inspección"); return; }
+    await borrarBorrador();
     setResult(data);
     setStep("final");
     loadData();
   }
+
+  /**
+   * Reenvía lo que quedó en cola. Se dispara al recuperar la señal.
+   * Un rechazo del servidor saca la inspección de la cola: reintentarlo daría
+   * siempre el mismo resultado y bloquearía la cola indefinidamente.
+   */
+  const sincronizar = useCallback(async () => {
+    if (sincronizando) return;
+    const cola = await leerCola();
+    if (cola.length === 0) return;
+
+    setSincronizando(true);
+    for (const p of cola) {
+      const { error } = await supabase.rpc("submit_inspection", {
+        p_vehicle_id: p.vehicleId, p_driver_id: p.driverId, p_answers: p.answers,
+        p_km_inicial: p.kmInicial, p_fuel_in: p.fuelIn, p_obs: p.obs,
+        p_idempotency_key: p.idempotencyKey,
+      });
+      if (!error) {
+        await desencolar(p.idempotencyKey);
+      } else if (esErrorDeRed(error)) {
+        await marcarIntento(p, error.message);
+        break; // sigue sin señal: se reintenta más tarde
+      } else {
+        await desencolar(p.idempotencyKey);
+        showToast(`${p.vehiclePlate}: ${friendlyError(error, "el servidor rechazó la inspección")}`);
+      }
+    }
+    setSincronizando(false);
+    setColaVersion((v) => v + 1);
+    loadData();
+  }, [supabase, sincronizando, showToast, loadData]);
+
+  // Al recuperar la señal se reenvía automáticamente lo que quedó en cola.
+  useEffect(() => {
+    if (enLinea) sincronizar();
+  }, [enLinea, sincronizar]);
 
   // ---- Registrar regreso ----
   const [cierreOp, setCierreOp] = useState<OpenOp | null>(null);
@@ -275,8 +399,22 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
               <div><span className="home2-brandtext"><span className="l1">PREOPERATIONAL</span><span className="l2">SYSTEM</span></span></div>
               <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 3 }}>Inspección de flotas · {round.label}</div>
             </div>
-            <div className="home2-status"><span className="home2-dot" />En línea</div>
+            <OfflineBadge enLinea={enLinea} pendientes={pendientes} />
           </div>
+          {borradorPrevio && (
+            <div className="draft-resume">
+              <div>
+                <div className="draft-resume-title">Tienes una inspección a medias</div>
+                <div className="cell-sub">
+                  {borradorPrevio.vehicle?.plate} · {borradorPrevio.driver?.name}
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                <button className="btn btn-ghost btn-sm" onClick={descartarBorrador}>Descartar</button>
+                <button className="btn btn-primary btn-sm" onClick={retomarBorrador}>Continuar</button>
+              </div>
+            </div>
+          )}
           <div className="home2-hero" style={{ backgroundImage: "url('/home-hero.png')" }}>
             <div className="home2-hero-caption"><span>Flota operativa</span><span className="tag">Preoperacional</span></div>
           </div>
@@ -481,8 +619,34 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
         );
       })()}
 
+      {/* FINAL — inspección guardada sin señal (todavía NO cuenta para la operación) */}
+      {step === "final" && result?.encolada && (
+        <div className="d-final">
+          <div className="final-badge" style={{ background: "var(--orange-soft)", color: "var(--orange)" }}>
+            <svg viewBox="0 0 24 24" fill="none"><path d="M12 7v5l3 2" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" /></svg>
+          </div>
+          <h1 style={{ fontSize: 24, margin: "6px 0" }}>Guardada sin señal</h1>
+          <p style={{ color: "var(--muted)", fontSize: 14, maxWidth: 340, margin: "0 auto" }}>
+            Tu inspección quedó guardada en este dispositivo y se enviará sola cuando
+            vuelva la conexión. No cierres sesión hasta entonces.
+          </p>
+          <div style={{ margin: "14px 0" }}>
+            <span className="result-pill warn">PENDIENTE DE ENVÍO</span>
+          </div>
+          <p className="cell-sub" style={{ maxWidth: 340, margin: "0 auto 16px" }}>
+            <b>Importante:</b> hasta que llegue al servidor, el vehículo no queda autorizado.
+            Consulta con tu supervisor antes de salir.
+          </p>
+          <div style={{ padding: "0 24px" }}>
+            <button className="btn btn-primary btn-block" onClick={() => { resetFlow(); setStep("home"); }}>
+              Volver al inicio
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* FINAL */}
-      {step === "final" && result && (
+      {step === "final" && result && !result.encolada && (
         <div className="d-final">
           <div className="final-badge" style={{ background: result.authorized ? "var(--green-soft)" : "var(--red-soft)", color: result.authorized ? "var(--green)" : "var(--red)" }}>
             {result.authorized

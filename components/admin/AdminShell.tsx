@@ -16,6 +16,7 @@ const ICONS: Record<string, string> = {
   novedades: '<path d="M12 9v4M12 17h.01M10.3 3.9 2.5 17a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" stroke-linecap="round" stroke-linejoin="round"/>',
   rondas: '<path d="M21 12a9 9 0 1 1-3-6.7M21 4v4h-4" stroke-linecap="round" stroke-linejoin="round"/>',
   reportes: '<path d="M4 20V10M10 20V4M16 20v-7M4 20h16" stroke-linecap="round" stroke-linejoin="round"/>',
+  usuarios: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" stroke-linecap="round"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke-linecap="round"/>',
   configuracion: '<circle cx="12" cy="12" r="3"/><path d="M19.4 13a7.9 7.9 0 0 0 0-2l2.1-1.6-2-3.4-2.5 1a8 8 0 0 0-1.7-1L14.9 3H9.1l-.4 2.9a8 8 0 0 0-1.7 1l-2.5-1-2 3.4L4.6 11a7.9 7.9 0 0 0 0 2l-2.1 1.6 2 3.4 2.5-1a8 8 0 0 0 1.7 1l.4 2.9h5.8l.4-2.9a8 8 0 0 0 1.7-1l2.5 1 2-3.4z" stroke-linejoin="round"/>',
 };
 
@@ -27,6 +28,7 @@ const NAV = [
   { href: "/admin/novedades", key: "novedades", label: "Novedades" },
   { href: "/admin/rondas", key: "rondas", label: "Rondas" },
   { href: "/admin/reportes", key: "reportes", label: "Reportes" },
+  { href: "/admin/usuarios", key: "usuarios", label: "Usuarios" },
   { href: "/admin/configuracion", key: "configuracion", label: "Configuración" },
   // "Auditoría" se retiró del menú por decisión de producto (los audit_logs siguen activos en backend).
 ];
@@ -39,6 +41,7 @@ const TITLES: Record<string, [string, string]> = {
   "/admin/novedades": ["Novedades", "Hallazgos, evidencias y su estado de atención"],
   "/admin/rondas": ["Rondas", "Control operativo de rondas de inspección"],
   "/admin/reportes": ["Reportes", "Análisis, evidencia y exportación de la operación"],
+  "/admin/usuarios": ["Usuarios", "Quién entra al sistema y con qué permisos"],
   "/admin/configuracion": ["Configuración", "Checklist, operación y sistema"],
 };
 
