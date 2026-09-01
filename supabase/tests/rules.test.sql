@@ -25,7 +25,7 @@ declare
   v_org uuid; v_admin uuid; v_drv uuid; v_round uuid;
   v_vA uuid; v_vB uuid; v_vC uuid;
   v_crit uuid; v_norm uuid;
-  v_res jsonb; v_insp uuid; v_err text;
+  v_res jsonb; v_insp uuid; v_err text; v_other uuid;
   v_p int := 0; v_log text := '';
 begin
   -- ---------------------------------------------------------------------
@@ -168,6 +168,169 @@ begin
     if v_err like 'FALLO 7%' then raise; end if;
   end;
   v_p := v_p+1; v_log := v_log || '7:NOVEDADES_BLOQUEAN ';
+
+  -- =====================================================================
+  -- REGLA 8 — Borrar una ronda exige la contraseña del administrador, y el
+  --           sistema debe DECIR que la contraseña está mal.
+  --
+  -- La contraseña se cambia sólo dentro de esta transacción, que se revierte
+  -- al final: la clave real del administrador no se toca.
+  -- =====================================================================
+  update auth.users
+    set encrypted_password = extensions.crypt('ClaveDePruebaQA#2026', extensions.gen_salt('bf'))
+    where id = v_admin;
+
+  begin
+    perform public.delete_round(v_round, 'una-clave-que-no-es');
+    raise exception 'FALLO 8: borró la ronda con una contraseña incorrecta';
+  exception when others then
+    get stacked diagnostics v_err = message_text;
+    if v_err like 'FALLO 8%' then raise; end if;
+    if v_err <> 'La contraseña no es correcta' then
+      raise exception 'FALLO 8: el error no explica el problema real (dijo "%")', v_err;
+    end if;
+  end;
+  v_p := v_p+1; v_log := v_log || '8:CLAVE_BORRADO ';
+
+  -- =====================================================================
+  -- REGLA 9 — Borrar una ronda arrastra TODO su rastro, incluidas las
+  --           novedades que quedaron colgadas de la ronda sin inspección.
+  --
+  -- `issues.inspection_id` es ON DELETE SET NULL: al borrar una inspección
+  -- suelta, su novedad sobrevive conservando `round_id`. Si el borrado de la
+  -- ronda no las mira, quedan huérfanas para siempre en Novedades.
+  -- =====================================================================
+  insert into public.issues(organization_id, round_id, inspection_id, vehicle_id,
+                            driver_id, item_name, severity, status)
+    values (v_org, v_round, null, v_vC, v_drv, 'Novedad huerfana QA', 'bad', 'pending');
+
+  v_res := public.delete_round(v_round, 'ClaveDePruebaQA#2026');
+
+  if exists (select 1 from public.rounds where id = v_round) then
+    raise exception 'FALLO 9: la ronda sigue existiendo';
+  end if;
+  if exists (select 1 from public.issues where round_id = v_round) then
+    raise exception 'FALLO 9: quedaron novedades huérfanas apuntando a la ronda borrada';
+  end if;
+  if exists (select 1 from public.inspections where round_id = v_round) then
+    raise exception 'FALLO 9: quedaron inspecciones de la ronda borrada';
+  end if;
+  v_p := v_p+1; v_log := v_log || '9:BORRADO_COMPLETO(' || (v_res->>'issues_deleted') || ' nov) ';
+
+  -- =====================================================================
+  -- REGLA 10 — Corregir el WhatsApp del conductor repara los avisos que
+  --            todavía no han salido.
+  --
+  -- El aviso guarda una copia del número (debe conservar a dónde se envió).
+  -- Mientras siga en cola no se ha enviado nada, así que un aviso creado
+  -- cuando el conductor no tenía número tiene que quedar utilizable al
+  -- registrarlo. Antes quedaba "sin destino" para siempre.
+  -- =====================================================================
+  insert into public.notifications(organization_id, canal, destinatario, mensaje,
+                                   driver_id, estado, tipo)
+    values (v_org, 'whatsapp', '', 'Aviso QA sin destino', v_drv, 'sin_destino', 'regreso');
+
+  v_res := public.set_driver_whatsapp(v_drv, '+57 301 198 7446');
+
+  if v_res->>'whatsapp' <> '573011987446' then
+    raise exception 'FALLO 10: no normalizó el número (guardó "%")', v_res->>'whatsapp';
+  end if;
+  if not exists (select 1 from public.notifications
+                 where driver_id = v_drv and estado = 'pendiente'
+                   and destinatario = '573011987446') then
+    raise exception 'FALLO 10: el aviso sin destino no se reparó al registrar el número';
+  end if;
+  v_p := v_p+1; v_log := v_log || '10:WHATSAPP_REPARA_COLA ';
+
+  -- Un número imposible se rechaza en el servidor, no sólo en el navegador.
+  begin
+    perform public.set_driver_whatsapp(v_drv, '12');
+    raise exception 'FALLO 10b: aceptó un número de dos dígitos';
+  exception when others then
+    get stacked diagnostics v_err = message_text;
+    if v_err like 'FALLO 10b%' then raise; end if;
+  end;
+  v_p := v_p+1; v_log := v_log || '10b:NUMERO_VALIDADO ';
+
+  -- =====================================================================
+  -- REGLA 11 — Un mensaje personalizado se valida en el servidor.
+  -- =====================================================================
+  begin
+    perform public.send_custom_message(v_drv, 'hey');
+    raise exception 'FALLO 11: aceptó un mensaje de 3 caracteres';
+  exception when others then
+    get stacked diagnostics v_err = message_text;
+    if v_err like 'FALLO 11%' then raise; end if;
+  end;
+
+  begin
+    perform public.send_custom_message(v_drv, repeat('A', 1000));
+    raise exception 'FALLO 11: aceptó un mensaje de 1000 caracteres';
+  exception when others then
+    get stacked diagnostics v_err = message_text;
+    if v_err like 'FALLO 11%' then raise; end if;
+  end;
+
+  v_res := public.send_custom_message(v_drv, 'Pasa por el taller antes de salir, por favor.');
+  if (v_res->>'con_destino')::boolean is not true then
+    raise exception 'FALLO 11: no tomó el número recién registrado del conductor';
+  end if;
+  v_p := v_p+1; v_log := v_log || '11:MENSAJE_VALIDADO ';
+
+  -- =====================================================================
+  -- REGLA 12 — Un aviso no se puede marcar como enviado dos veces.
+  --            (Antes el botón hacía un UPDATE directo que la RLS ignoraba
+  --            en silencio: parecía funcionar y no hacía nada.)
+  -- =====================================================================
+  perform public.mark_notification_sent((v_res->>'id')::uuid);
+  if not exists (select 1 from public.notifications
+                 where id = (v_res->>'id')::uuid and estado = 'enviado' and enviado_at is not null) then
+    raise exception 'FALLO 12: marcar como enviado no cambió nada';
+  end if;
+  begin
+    perform public.mark_notification_sent((v_res->>'id')::uuid);
+    raise exception 'FALLO 12: permitió marcar dos veces el mismo aviso';
+  exception when others then
+    get stacked diagnostics v_err = message_text;
+    if v_err like 'FALLO 12%' then raise; end if;
+  end;
+  v_p := v_p+1; v_log := v_log || '12:ENVIO_UNICO ';
+
+  -- =====================================================================
+  -- REGLA 13 — Escribir a un conductor es cosa de administración.
+  --            Un operador de kiosco no puede usar el sistema para mandar
+  --            mensajes ni para cambiarle el número a nadie.
+  -- =====================================================================
+  select id into v_other from public.profiles
+    where organization_id = v_org and role in ('operator','driver','auditor') and active limit 1;
+
+  if v_other is not null then
+    perform set_config('request.jwt.claims',
+      json_build_object('sub', v_other::text, 'role','authenticated')::text, true);
+
+    begin
+      perform public.send_custom_message(v_drv, 'Mensaje que no debería poder enviar');
+      raise exception 'FALLO 13: un rol sin permisos pudo escribirle a un conductor';
+    exception when others then
+      get stacked diagnostics v_err = message_text;
+      if v_err like 'FALLO 13%' then raise; end if;
+    end;
+
+    begin
+      perform public.set_driver_whatsapp(v_drv, '573000000000');
+      raise exception 'FALLO 13: un rol sin permisos pudo cambiar un número';
+    exception when others then
+      get stacked diagnostics v_err = message_text;
+      if v_err like 'FALLO 13%' then raise; end if;
+    end;
+
+    -- Se vuelve a actuar como administrador para no dejar el contexto cambiado.
+    perform set_config('request.jwt.claims',
+      json_build_object('sub', v_admin::text, 'role','authenticated')::text, true);
+    v_p := v_p+1; v_log := v_log || '13:SOLO_ADMIN_ESCRIBE ';
+  else
+    v_log := v_log || '13:OMITIDA(sin rol no-admin en la base) ';
+  end if;
 
   raise notice '=========================================';
   raise notice 'PRUEBAS PASADAS: %  →  %', v_p, v_log;

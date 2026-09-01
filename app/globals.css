@@ -491,6 +491,9 @@ body.admin-mode #driverShell{display:none !important;}
 .badge.bad{background:var(--red-soft); color:var(--red);}
 .badge.pending{background:#EFEDFB; color:#6650C7;}
 .badge.info{background:var(--blue-soft); color:var(--blue);}
+/* Estado sin carga emocional (anulado, sin dato). Faltaba y las insignias
+   marcadas como "neutral" salían sin fondo, como texto suelto. */
+.badge.neutral{background:#EEF1F6; color:var(--navy-70);}
 
 /* table */
 .data-table{width:100%; border-collapse:collapse; font-size:13px;}
@@ -2061,3 +2064,157 @@ input::placeholder, textarea::placeholder{ color:var(--muted); opacity:1; }
   font-size:12px; font-weight:800;
 }
 .home2-secondary svg{ width:17px; height:17px; color:var(--acc); flex-shrink:0; }
+
+/* =========================================================
+   AVISOS — redacción de mensajes de WhatsApp
+   El panel dejó de ser una lista muerta: desde aquí se le escribe
+   a un conductor, se corrige su número y se despacha la cola.
+   ========================================================= */
+
+/* Error de validación dentro de un diálogo. Se muestra bajo el campo, no como
+   otra ventana encima: el usuario sigue viendo lo que escribió. */
+.dialog-error{
+  margin-top:8px; font-size:12.5px; font-weight:600; color:var(--red);
+}
+
+.wa-composer{ display:flex; flex-direction:column; gap:14px; }
+
+/* Ficha del destinatario: el número al que va el mensaje debe verse ANTES de
+   escribirlo, no después de enviarlo. */
+.wa-destino{
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  flex-wrap:wrap;
+  padding:12px 14px; border-radius:12px;
+  background:linear-gradient(145deg,#EAF1FE,#F5F8FF);
+  border:1px solid rgba(30,99,233,.14);
+}
+.wa-destino strong{ display:block; font-size:15px; color:var(--navy); letter-spacing:.2px; }
+.wa-destino-label{
+  display:block; font-size:10.5px; font-weight:800; letter-spacing:.6px;
+  text-transform:uppercase; color:var(--blue); margin-bottom:2px;
+}
+
+.wa-templates{ display:flex; gap:8px; flex-wrap:wrap; }
+.wa-chip{
+  padding:7px 13px; border-radius:100px; cursor:pointer; font-family:inherit;
+  font-size:12px; font-weight:700; color:var(--navy-70);
+  background:#fff; border:1px solid var(--line);
+  transition:border-color .14s, color .14s, background .14s;
+}
+.wa-chip:hover:not(:disabled){
+  border-color:rgba(30,99,233,.35); color:var(--blue); background:var(--blue-soft-2);
+}
+.wa-chip:disabled{ opacity:.45; cursor:not-allowed; }
+
+.wa-counter{
+  display:flex; justify-content:flex-end;
+  margin-top:6px; font-size:11.5px; font-weight:600; color:var(--muted);
+}
+.wa-counter .is-short{ color:var(--orange); }
+
+/* Tarjeta de un aviso en cola. No reutiliza `.manage-row` a propósito: esa
+   clase impone `align-items:center !important` y empuja el último bloque a la
+   derecha, que es justo lo contrario de lo que necesita una tarjeta apilada. */
+.wa-row{
+  display:flex; flex-direction:column; align-items:stretch; gap:10px;
+  padding:14px 16px; background:#fff;
+  border:1px solid rgba(11,37,69,.06); border-radius:14px;
+  box-shadow:0 3px 12px rgba(11,37,69,.04);
+  transition:border-color .12s, box-shadow .12s;
+}
+.wa-row:hover{
+  border-color:rgba(30,99,233,.2);
+  box-shadow:0 6px 18px rgba(11,37,69,.07);
+}
+.wa-row-head{
+  display:flex; align-items:baseline; justify-content:space-between;
+  gap:10px; flex-wrap:wrap;
+}
+.wa-row-head strong{ font-size:15px; color:var(--navy); letter-spacing:.2px; }
+.wa-row-actions{ display:flex; gap:8px; flex-wrap:wrap; }
+
+/* Vista previa del mensaje encolado, con el aire de una burbuja de chat para
+   que se lea como lo va a leer el conductor. */
+.wa-preview{
+  white-space:pre-wrap; word-break:break-word;
+  padding:11px 13px; border-radius:12px 12px 12px 4px;
+  background:#F1F7F2; border:1px solid #D8E9DC;
+  font-size:13px; line-height:1.5; color:var(--navy);
+}
+
+/* En el historial el mensaje se recorta: la tabla es para escanear, el texto
+   completo está en el tooltip y en la cola. */
+.wa-cell-msg{
+  max-width:320px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+
+/* =========================================================
+   ACCESO POR QR — cartel imprimible para la portería
+   ========================================================= */
+
+.qr-steps{
+  /* Preflight de Tailwind quita las viñetas de ol/ul; aquí el número ES la
+     información (el orden de los pasos), así que se repone a propósito. */
+  list-style:decimal; margin:0; padding:0 0 0 20px;
+  display:flex; flex-direction:column; gap:11px;
+  font-size:13.5px; line-height:1.55; color:var(--navy-70);
+}
+.qr-steps strong{ color:var(--navy); }
+
+.qr-note{
+  margin-top:16px; padding:13px 15px; border-radius:12px;
+  background:var(--green-soft); border:1px solid rgba(30,142,90,.18);
+  font-size:12.8px; line-height:1.55; color:#1B5E3C;
+}
+.qr-note strong{ color:#12492E; }
+
+/* El cartel. Se diseña para el papel: contraste alto, cero degradados
+   costosos de tinta y un bloque de instrucciones legible de lejos. */
+.qr-poster{
+  background:#fff; border:1px solid var(--line); border-radius:18px;
+  padding:34px 28px 30px; text-align:center;
+  max-width:520px; margin:0 auto;
+  box-shadow:0 10px 30px rgba(11,37,69,.06);
+}
+.qr-poster-brand{
+  font-size:15px; letter-spacing:1.4px; font-weight:800; color:var(--navy);
+  margin-bottom:20px;
+}
+.qr-poster-brand .l2{ color:var(--blue); }
+.qr-poster-title{ font-size:22px; font-weight:800; color:var(--navy); letter-spacing:-.2px; }
+.qr-poster-sub{ font-size:13.5px; color:var(--muted); margin-top:3px; margin-bottom:22px; }
+
+.qr-code{
+  width:250px; height:250px; margin:0 auto;
+  padding:14px; border-radius:16px;
+  background:#fff; border:2px solid var(--navy);
+}
+.qr-code svg{ width:100%; height:100%; display:block; }
+
+.qr-poster-cta{
+  margin-top:20px; font-size:16px; font-weight:800; color:var(--navy);
+}
+.qr-poster-steps{
+  list-style:decimal; display:inline-block;
+  margin:12px 0 0; padding:0 0 0 22px; text-align:left;
+  font-size:13.5px; color:var(--navy-70); line-height:1.5;
+}
+.qr-poster-url{
+  margin-top:20px; padding-top:14px; border-top:1px dashed var(--line);
+  font-size:11px; color:var(--muted); word-break:break-all; letter-spacing:.2px;
+}
+
+/* Al imprimir sólo debe salir el cartel: ni barra lateral, ni cabecera, ni las
+   instrucciones para el administrador. */
+@media print{
+  .admin-sidebar, .admin-topbar, .sidebar-scrim, .no-print, .toast{ display:none !important; }
+  .admin-shell, .admin-main, .admin-body{
+    display:block !important; margin:0 !important; padding:0 !important;
+    background:#fff !important; height:auto !important; overflow:visible !important;
+  }
+  .qr-poster{
+    border:none; box-shadow:none; max-width:none;
+    padding:0; margin:0 auto; page-break-inside:avoid;
+  }
+  .qr-code{ width:300px; height:300px; }
+}

@@ -8,6 +8,9 @@ import { friendlyError } from "@/lib/errors";
 
 afterEach(() => vi.restoreAllMocks());
 
+/** Así llega a Supabase un `raise exception` de PL/pgSQL. */
+const reglaDeNegocio = (message: string) => ({ code: "P0001", message });
+
 describe("mensajes de negocio en español", () => {
   it("deja pasar intactos los mensajes escritos para el usuario en los RPC", () => {
     const mensajes = [
@@ -20,17 +23,34 @@ describe("mensajes de negocio en español", () => {
       "Inspección no encontrada",
     ];
     for (const m of mensajes) {
-      expect(friendlyError({ message: m })).toBe(m);
+      expect(friendlyError(reglaDeNegocio(m))).toBe(m);
     }
+  });
+
+  // Regresión: al borrar una ronda con la contraseña equivocada el sistema
+  // mostraba "No fue posible eliminar la ronda" y el administrador no tenía
+  // forma de saber que el problema era la contraseña.
+  it("explica que la contraseña está mal en vez de dar un error genérico", () => {
+    expect(friendlyError(reglaDeNegocio("La contraseña no es correcta"),
+      "No fue posible eliminar la ronda.")).toBe("La contraseña no es correcta");
+  });
+
+  it("no inventa mensajes de negocio a partir de errores técnicos", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    // Sin el código P0001 no es una regla de negocio: no se muestra tal cual.
+    expect(friendlyError({ message: "algo interno del servidor" }, "Respaldo."))
+      .toBe("Respaldo.");
   });
 });
 
 describe("errores técnicos", () => {
   it("nunca muestra jerga de base de datos al usuario", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
     const tecnicos = [
       "duplicate key value violates unique constraint",
       "insert or update on table violates foreign key constraint",
-      'JSON object requested, multiple (or no) rows returned',
+      "JSON object requested, multiple (or no) rows returned",
+      'null value in column "x" violates not-null constraint',
     ];
     for (const m of tecnicos) {
       const salida = friendlyError({ message: m });
@@ -47,12 +67,17 @@ describe("errores técnicos", () => {
 
   it("traduce la clave duplicada", () => {
     expect(friendlyError({ message: "duplicate key value" })).toBe("Ese registro ya existe.");
-    expect(friendlyError({ message: "23505" })).toBe("Ese registro ya existe.");
+    expect(friendlyError({ code: "23505", message: "..." })).toBe("Ese registro ya existe.");
   });
 
   it("traduce la violación de llave foránea", () => {
     expect(friendlyError({ message: "foreign key violation" }))
-      .toBe("No se puede completar: hay información relacionada.");
+      .toBe("No se puede completar: hay información relacionada que depende de este registro.");
+  });
+
+  it("avisa cuando la sesión expiró para que el usuario sepa qué hacer", () => {
+    expect(friendlyError({ message: "JWT expired" }))
+      .toBe("Tu sesión expiró. Vuelve a iniciar sesión.");
   });
 
   it("distingue un problema de red para que el usuario sepa reintentar", () => {

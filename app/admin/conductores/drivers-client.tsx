@@ -11,7 +11,7 @@ import { friendlyError } from "@/lib/errors";
 import { compressImage, AVATAR_PRESET } from "@/lib/image";
 import { useDialog } from "@/components/ui/dialogs";
 import PhotoCropper from "@/components/PhotoCropper";
-import { LIMITES, limpiarTexto, soloTelefono, soloDigitos, textoValido, telefonoValido, licenciaValida } from "@/lib/validation";
+import { LIMITES, WHATSAPP_DIGITOS, limpiarTexto, soloTelefono, soloDigitos, textoValido, telefonoValido, licenciaValida } from "@/lib/validation";
 
 export interface DriverRow {
   id: string; full_name: string; license: string | null; whatsapp: string | null;
@@ -180,8 +180,21 @@ function DriverForm({ driver, onClose, onSaved }: { driver: DriverRow | null; on
   async function save() {
     setBusy(true); setErr("");
     let error;
-    if (driver) ({ error } = await supabase.from("drivers").update({ full_name: f.full_name, license: f.license, whatsapp: f.whatsapp }).eq("id", driver.id));
-    else {
+    if (driver) {
+      ({ error } = await supabase.from("drivers")
+        .update({ full_name: f.full_name, license: f.license })
+        .eq("id", driver.id));
+
+      // El WhatsApp va por su propio RPC porque cambiarlo no es sólo cambiar un
+      // campo: también repunta los avisos que siguen en cola hacia el número
+      // nuevo. Con un UPDATE directo, un aviso creado cuando el conductor no
+      // tenía número quedaba inservible para siempre.
+      if (!error && soloDigitos(f.whatsapp) !== soloDigitos(driver.whatsapp ?? "")) {
+        ({ error } = await supabase.rpc("set_driver_whatsapp", {
+          p_driver_id: driver.id, p_whatsapp: f.whatsapp,
+        }));
+      }
+    } else {
       if (f.pin && !/^\d{4}$/.test(f.pin)) { setErr("El PIN debe tener 4 dígitos."); setBusy(false); return; }
       ({ error } = await supabase.rpc("admin_create_driver", { p_full_name: f.full_name, p_license: f.license, p_whatsapp: f.whatsapp, p_pin: f.pin || null }));
     }
@@ -219,7 +232,7 @@ function DriverForm({ driver, onClose, onSaved }: { driver: DriverRow | null; on
           onChange={(e) => setF({ ...f, whatsapp: soloTelefono(e.target.value).slice(0, LIMITES.whatsapp.max) })} />
         {f.whatsapp.length > 0 && !telefonoValido(f.whatsapp) && (
           <div className="cell-sub" style={{ color: "var(--orange)", marginTop: 4 }}>
-            Teléfono incompleto (mínimo {LIMITES.whatsapp.min} dígitos).
+            Teléfono incompleto (entre {WHATSAPP_DIGITOS.min} y {WHATSAPP_DIGITOS.max} dígitos).
           </div>
         )}
         {!driver && (<>

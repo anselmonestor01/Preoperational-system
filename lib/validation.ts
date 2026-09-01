@@ -34,6 +34,13 @@ export const LIMITES = {
 /** Un camión no supera el millón de km en su vida útil; el tope deja margen. */
 export const KM_MAX = 9_999_999;
 
+/**
+ * Dígitos que debe tener un número de WhatsApp, indicativo de país incluido.
+ * Siete es el número local más corto que existe; quince es el máximo que define
+ * la norma E.164. Coincide con lo que valida el servidor.
+ */
+export const WHATSAPP_DIGITOS = { min: 7, max: 15 } as const;
+
 /** Sólo dígitos. Para kilometraje y PIN. */
 export function soloDigitos(v: string): string {
   return v.replace(/\D+/g, "");
@@ -80,11 +87,20 @@ export function textoValido(v: string, limite: { min: number; max: number }): bo
   return t.length >= limite.min && t.length <= limite.max;
 }
 
-/** Teléfono opcional: vacío es válido; si hay algo, debe tener formato. */
+/**
+ * Teléfono opcional: vacío es válido; si hay algo, debe tener formato.
+ *
+ * Se cuentan los DÍGITOS, no los caracteres: "+57 301 198 7446" y
+ * "573011987446" son el mismo número y ambos deben aceptarse. Los límites son
+ * los mismos que aplica `set_driver_whatsapp` en la base de datos, para que el
+ * navegador nunca deje pasar algo que el servidor va a rechazar.
+ */
 export function telefonoValido(v: string): boolean {
   const t = (v ?? "").trim();
   if (t === "") return true;
-  return /^[0-9+()\s-]{7,20}$/.test(t);
+  if (!/^[0-9+()\s-]+$/.test(t)) return false;
+  const digitos = t.replace(/\D+/g, "").length;
+  return digitos >= WHATSAPP_DIGITOS.min && digitos <= WHATSAPP_DIGITOS.max;
 }
 
 /** Licencia opcional: vacía es válida; si hay algo, debe cumplir longitud. */

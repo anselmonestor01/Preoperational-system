@@ -34,6 +34,20 @@ type PromptSpec = ConfirmSpec & {
   /** Si es true, no deja confirmar con el campo vacío. */
   required?: boolean;
   multiline?: boolean;
+  /** Teclado que debe abrir un móvil (por ejemplo "tel" para un teléfono). */
+  inputMode?: "text" | "tel" | "numeric" | "decimal" | "email";
+  /** Tope duro de caracteres. Un campo sin tope es una puerta abierta. */
+  maxLength?: number;
+  /**
+   * Filtra lo que se puede teclear (por ejemplo, dejar sólo dígitos). Se aplica
+   * en cada pulsación, así que el campo nunca llega a contener algo inválido.
+   */
+  sanitize?: (v: string) => string;
+  /**
+   * Comprueba el valor completo. Devuelve el texto del error, o null si está
+   * bien. Mientras devuelva un error no se puede confirmar.
+   */
+  validate?: (v: string) => string | null;
 };
 
 type PasswordSpec = ConfirmSpec & {
@@ -103,7 +117,20 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
   }
 
   const needsValue = state?.kind === "password" || (state?.kind === "prompt" && state?.required);
-  const canConfirm = !needsValue || value.trim().length > 0;
+  // El error de validación sólo se muestra cuando ya hay algo escrito: no tiene
+  // sentido regañar por un campo que la persona todavía no ha tocado.
+  const errorValidacion =
+    state?.kind === "prompt" && state.validate && value.trim().length > 0
+      ? state.validate(value)
+      : null;
+  const canConfirm =
+    (!needsValue || value.trim().length > 0) && !errorValidacion;
+
+  /** Aplica el filtro de tecleo del diálogo, si lo tiene. */
+  function escribir(v: string) {
+    const limpio = state?.kind === "prompt" && state.sanitize ? state.sanitize(v) : v;
+    setValue(state?.maxLength ? limpio.slice(0, state.maxLength) : limpio);
+  }
 
   function accept() {
     if (!canConfirm) return;
@@ -156,7 +183,8 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
                     style={{ width: "100%", minHeight: 84 }}
                     value={value}
                     placeholder={state.placeholder}
-                    onChange={(e) => setValue(e.target.value)}
+                    maxLength={state.maxLength}
+                    onChange={(e) => escribir(e.target.value)}
                   />
                 ) : (
                   <input
@@ -166,10 +194,13 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
                     style={{ width: "100%" }}
                     value={value}
                     placeholder={state.placeholder}
-                    onChange={(e) => setValue(e.target.value)}
+                    inputMode={state.inputMode}
+                    maxLength={state.maxLength}
+                    onChange={(e) => escribir(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") accept(); }}
                   />
                 )}
+                {errorValidacion && <div className="dialog-error">{errorValidacion}</div>}
               </>
             )}
 

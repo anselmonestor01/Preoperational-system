@@ -27,7 +27,7 @@ export default async function ReportesPage({
   ]);
 
   let query = supabase.from("inspections")
-    .select("id,vehicle_plate,driver_name,vehicle_id,driver_id,round_id,result,authorized,status,km_inicial,km_final,recorrido,submitted_at")
+    .select("id,vehicle_plate,driver_name,vehicle_id,driver_id,round_id,result,authorized,status,km_inicial,km_final,recorrido,submitted_at,device_label,device_id")
     .neq("status", "in_progress").order("submitted_at", { ascending: false }).limit(1000);
   if (roundId !== "all") query = query.eq("round_id", roundId);
   else query = query.gte("submitted_at", `${from}T00:00:00`).lte("submitted_at", `${to}T23:59:59`);

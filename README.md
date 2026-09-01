@@ -52,7 +52,8 @@ manipular el cliente/DevTools no cambia el veredicto. Ver
 `organizations · profiles(→auth.users) · drivers(pin_hash) · vehicles ·
 checklist_categories · checklist_items(is_safety_critical) ·
 checklist_versions(snapshot jsonb) · rounds · inspections(+operación embebida) ·
-inspection_answers · issues · issue_evidence · audit_logs`
+inspection_answers · issues · issue_evidence · driver_claims · notifications ·
+audit_logs`
 
 - **Multi-tenant:** `organization_id` en todas las tablas + RLS.
 - **Versionado de checklist:** cada inspección guarda `checklist_version_id` y un
@@ -61,6 +62,12 @@ inspection_answers · issues · issue_evidence · audit_logs`
   evitan doble inspección por vehículo/ronda y más de una ronda abierta.
 - **Operación embebida:** la operación (km inicial/final, combustible, recorrido,
   abierta/cerrada) vive en la inspección autorizada — sin duplicar datos.
+- **Un perfil, un dispositivo:** `driver_claims` reserva el perfil del conductor
+  para el equipo donde escribió su PIN, de modo que dos teléfonos no pueden
+  inspeccionar con la misma identidad. La reserva caduca sola a los 45 minutos.
+- **Avisos en bandeja de salida:** `notifications` encola los mensajes de
+  WhatsApp. Una inspección nunca falla porque el proveedor de mensajería esté
+  caído; el aviso se envía después.
 
 ---
 
@@ -116,10 +123,23 @@ que se guarda con bcrypt y sólo puede revelarlo un administrador (acción audit
 app/                    Rutas Next.js (login, kiosco, admin/*, auth)
 components/admin/       Shell del panel (sidebar, topbar)
 lib/                    Clientes Supabase, tipos, helpers (checklist, formato)
-supabase/migrations/    Migraciones SQL versionadas (0001..0010)
+supabase/migrations/    Migraciones SQL versionadas (0001..0018)
 supabase/seed.sql       Datos demo (cliente ficticio de prueba)
+supabase/tests/         Pruebas de las reglas de negocio en PostgreSQL
+tests/                  Pruebas unitarias del cliente (Vitest)
 docs/                   Arquitectura, seguridad, QA
 ```
+
+### Pruebas
+
+```bash
+npm test                             # 67 pruebas unitarias del cliente
+psql "$DATABASE_URL" -f supabase/tests/rules.test.sql   # 15 reglas de negocio
+```
+
+Las pruebas SQL corren dentro de una transacción que se **revierte**: no dejan
+ni un registro. Ya encontraron un fallo real (ningún ítem del checklist estaba
+marcado como crítico, así que el sistema autorizaba un camión sin frenos).
 
 ---
 
@@ -131,5 +151,40 @@ entorno requeridas en Vercel:
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
-(Opcional, sólo server-side para futuras funciones de administración de usuarios:
-`SUPABASE_SERVICE_ROLE_KEY` — **nunca** exponer al cliente.)
+Opcionales, **sólo server-side** (nunca con el prefijo `NEXT_PUBLIC_`):
+
+| Variable | Para qué |
+|---|---|
+| `SUPABASE_SERVICE_ROLE_KEY` | Envío automático de avisos (`/api/notificaciones`). |
+| `NOTIFY_SECRET` | Secreto que autoriza a disparar ese envío. |
+| `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID` | Cuenta de WhatsApp Business API. |
+
+Sin esas variables el sistema **funciona igual**: los avisos se envían a mano
+desde *Avisos*, con un toque y sin costo. Ver la sección siguiente.
+
+---
+
+## Avisos de WhatsApp
+
+Cada vez que un vehículo sale autorizado, el sistema encola un recordatorio para
+que el conductor registre su regreso. Hay dos formas de que salga:
+
+1. **Enlace `wa.me` (activo desde el primer día, gratis).** En *Avisos*, el botón
+   «Abrir en WhatsApp» abre la conversación con el texto ya escrito; «Marcar como
+   enviado» deja constancia. Desde ahí también se puede escribir un mensaje
+   personalizado a cualquier conductor y corregirle el número —incluso con una
+   inspección en curso—, lo que repara automáticamente sus avisos en cola.
+2. **WhatsApp Business API (automático).** Requiere cuenta de empresa y plantillas
+   aprobadas por Meta. Al configurar las variables de arriba, `/api/notificaciones`
+   vacía la cola sin intervención humana.
+
+---
+
+## Acceso por QR
+
+*Acceso QR* genera un cartel imprimible para la portería. El código contiene
+**únicamente la dirección del kiosco**: ninguna clave, ningún token. Quien lo
+escanee sigue necesitando una sesión iniciada en el dispositivo del patio y el
+PIN personal del conductor. Se descartó a propósito incluir un token de acceso:
+un cartel a la vista de todos habría sido, en la práctica, una contraseña pegada
+a la pared.

@@ -18,7 +18,7 @@ export default async function InspeccionesPage({
   const q = (searchParams.q ?? "").trim();
 
   let query = supabase.from("inspections")
-    .select("id,vehicle_plate,driver_name,result,authorized,status,operation_status,km_inicial,km_final,recorrido,fuel_in,fuel_out,submitted_at,checklist_version_number,bad_count,warn_count", { count: "exact" })
+    .select("id,vehicle_plate,driver_name,result,authorized,status,operation_status,km_inicial,km_final,recorrido,fuel_in,fuel_out,submitted_at,checklist_version_number,bad_count,warn_count,device_id,device_label", { count: "exact" })
     .neq("status", "in_progress").order("created_at", { ascending: false });
   if (status !== "all") query = query.eq("status", status);
   if (q) query = query.ilike("vehicle_plate", `%${q}%`);
@@ -48,12 +48,16 @@ export default async function InspeccionesPage({
       {(data ?? []).length ? (
         <div style={{ overflowX: "auto" }}>
           <table className="data-table">
-            <thead><tr><th>Vehículo</th><th>Conductor</th><th>Fecha / hora</th><th>Km</th><th>Combustible</th><th>Resultado</th><th>Operación</th><th></th></tr></thead>
+            <thead><tr><th>Vehículo</th><th>Conductor</th><th>Dispositivo</th><th>Fecha / hora</th><th>Km</th><th>Combustible</th><th>Resultado</th><th>Operación</th><th></th></tr></thead>
             <tbody>
               {(data ?? []).map((r) => (
                 <tr key={r.id}>
                   <td className="cell-veh">{r.vehicle_plate}<div className="cell-sub">v{r.checklist_version_number ?? "?"}</div></td>
                   <td>{r.driver_name}</td>
+                  <td>{r.device_id
+                    ? <>{r.device_label ?? "Dispositivo"}<div className="cell-sub" title={r.device_id}>#{String(r.device_id).slice(0, 8)}</div></>
+                    : <span className="cell-sub" title="Registrada antes de que el sistema guardara el equipo, o desde la cola sin conexión.">—</span>}
+                  </td>
                   <td className="cell-sub" style={{ whiteSpace: "nowrap" }}>{fmtDateTime(r.submitted_at)}</td>
                   <td className="cell-sub" style={{ whiteSpace: "nowrap" }}>{fmtKm(r.km_inicial)}{r.km_final != null && <> → {fmtKm(r.km_final)}</>}</td>
                   <td className="cell-sub">{r.fuel_in ?? "—"}{r.fuel_out ? ` → ${r.fuel_out}` : ""}</td>

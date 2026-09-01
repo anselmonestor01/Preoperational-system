@@ -309,7 +309,9 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
     try {
       const inspId = (data as { id?: string } | null)?.id;
       if (inspId) {
-        await supabase.rpc("bind_inspection_device", { p_inspection_id: inspId, p_device_id: deviceId() });
+        await supabase.rpc("bind_inspection_device", {
+          p_inspection_id: inspId, p_device_id: deviceId(), p_device_label: deviceLabel(),
+        });
         // Recordatorio de regreso: se ENCOLA, no se envía aquí.
         await supabase.rpc("enqueue_return_reminder", { p_inspection_id: inspId });
       }

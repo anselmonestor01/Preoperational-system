@@ -5,7 +5,7 @@
 // formulario completo para recibir un error incomprensible al enviarlo.
 import { describe, it, expect } from "vitest";
 import {
-  LIMITES, KM_MAX, soloDigitos, soloTelefono, soloPlaca, limpiarTexto,
+  LIMITES, KM_MAX, WHATSAPP_DIGITOS, soloDigitos, soloTelefono, soloPlaca, limpiarTexto,
   kmValido, kmRegresoValido, textoValido, telefonoValido, licenciaValida, pinValido,
 } from "@/lib/validation";
 
@@ -92,6 +92,25 @@ describe("campos opcionales", () => {
     expect(telefonoValido("+57 300 680 8029")).toBe(true);
     expect(telefonoValido("no-es-telefono")).toBe(false);
     expect(telefonoValido("123")).toBe(false); // demasiado corto
+  });
+
+  // El servidor cuenta dígitos (7 a 15, norma E.164). Si el navegador contara
+  // caracteres, un número escrito con espacios se rechazaría aquí aunque el
+  // servidor lo aceptara, y uno de 18 dígitos pasaría aquí para fallar allá.
+  it("el teléfono se mide en dígitos, no en caracteres escritos", () => {
+    expect(WHATSAPP_DIGITOS).toEqual({ min: 7, max: 15 });
+
+    // El mismo número, escrito de tres formas: las tres válidas.
+    expect(telefonoValido("573011987446")).toBe(true);
+    expect(telefonoValido("+57 301 198 7446")).toBe(true);
+    expect(telefonoValido("+57 (301) 198-7446")).toBe(true);
+
+    // Ni uno más corto que un número local ni uno más largo que E.164.
+    expect(telefonoValido("123456")).toBe(false);
+    expect(telefonoValido("1234567890123456")).toBe(false);
+
+    // Y ningún acompañante raro, por bonito que se vea.
+    expect(telefonoValido("300 680 8029 ext. 4")).toBe(false);
   });
 
   it("licencia vacía es válida; de dos caracteres no", () => {
