@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { initials } from "@/lib/format";
 import { friendlyError } from "@/lib/errors";
+import { compressImage, AVATAR_PRESET } from "@/lib/image";
 
 export interface DriverRow {
   id: string; full_name: string; license: string | null; whatsapp: string | null;
@@ -57,9 +58,14 @@ export default function DriversClient({ rows, photoMap, orgId }: { rows: DriverR
   }
   async function uploadPhoto(d: DriverRow, file: File) {
     setBusy(d.id);
-    const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
-    const path = `${orgId}/drivers/${d.id}.${ext}`;
-    const up = await supabase.storage.from("driver-photos").upload(path, file, { upsert: true });
+    // Se reescala a tamaño de avatar antes de subir; además el nombre queda
+    // siempre .jpg, así reemplazar la foto sobrescribe el mismo objeto y no
+    // deja archivos huérfanos en Storage.
+    const photo = await compressImage(file, AVATAR_PRESET);
+    const path = `${orgId}/drivers/${d.id}.jpg`;
+    const up = await supabase.storage
+      .from("driver-photos")
+      .upload(path, photo, { upsert: true, contentType: photo.type });
     if (up.error) { setBusy(null); return show(friendlyError(up.error, "No fue posible subir la foto.")); }
     const { error } = await supabase.from("drivers").update({ photo_path: path }).eq("id", d.id);
     setBusy(null);

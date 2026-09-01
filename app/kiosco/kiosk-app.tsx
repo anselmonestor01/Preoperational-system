@@ -9,6 +9,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { optionsFor, severityOf, previewResult } from "@/lib/checklist";
 import { fmtKm, initials } from "@/lib/format";
+import { compressImage, EVIDENCE_PRESET } from "@/lib/image";
 import type { AnswerPayload, ItemType, Severity } from "@/lib/types";
 
 type Step = "home" | "driver" | "vehicle" | "datos" | "inspect" | "summary" | "final";
@@ -128,11 +129,16 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
   async function uploadEvidence(file: File) {
     if (issueEv.length >= 3) { showToast("Máximo 3 fotos por novedad"); return; }
     setUploadingEv(true);
-    const path = `${orgId}/tmp/${crypto.randomUUID()}-${file.name.replace(/[^\w.\-]/g, "_")}`;
-    const { error } = await supabase.storage.from("evidence").upload(path, file, { upsert: false });
+    // Se comprime en el dispositivo: la foto original de cámara (3–8 MB) nunca
+    // viaja por la red ni ocupa almacenamiento.
+    const shot = await compressImage(file, EVIDENCE_PRESET);
+    const path = `${orgId}/tmp/${crypto.randomUUID()}-${shot.name.replace(/[^\w.\-]/g, "_")}`;
+    const { error } = await supabase.storage
+      .from("evidence")
+      .upload(path, shot, { upsert: false, contentType: shot.type });
     setUploadingEv(false);
     if (error) { showToast("No se pudo subir la foto"); return; }
-    const preview = URL.createObjectURL(file);
+    const preview = URL.createObjectURL(shot);
     setIssueEv((e) => [...e, { path, preview }]);
   }
   function saveIssue() {
