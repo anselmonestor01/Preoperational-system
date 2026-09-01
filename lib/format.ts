@@ -32,6 +32,17 @@ export function fmtKm(n: number | null | undefined): string {
   return `${n.toLocaleString("es-CO")} km`;
 }
 
+/**
+ * Iniciales para el avatar. Se descartan los espacios sobrantes: sin eso, un
+ * nombre capturado como "  Juan Pérez" producía un avatar en blanco, porque las
+ * primeras posiciones del split eran cadenas vacías.
+ */
 export function initials(name: string): string {
-  return name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+  return (name ?? "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase();
 }

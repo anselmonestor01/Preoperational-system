@@ -1,0 +1,59 @@
+# Integración continua.
+#
+# Corre en cada push y en cada pull request. Si algo de esto falla, el commit
+# queda marcado en rojo en GitHub y Vercel deja constancia del fallo antes de
+# que llegue a producción.
+#
+# No se ejecutan pruebas contra la base de datos real: requerirían credenciales
+# en el repositorio y podrían tocar datos de un cliente. La lógica de negocio
+# crítica vive en PostgreSQL y se valida con los advisors de Supabase.
+
+name: CI
+
+on:
+  push:
+    branches: [main, "claude/**"]
+  pull_request:
+    branches: [main]
+
+# Si se empuja varias veces seguidas, cancela la ejecución anterior.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verificacion:
+    name: Tipos, estilo, pruebas y build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Preparar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Comprobar tipos
+        run: npm run typecheck
+
+      - name: Revisar estilo de código
+        run: npm run lint
+
+      - name: Pruebas automatizadas
+        run: npm test
+
+      - name: Compilar la aplicación
+        run: npm run build
+        env:
+          # Valores públicos por diseño (la seguridad la impone RLS en la base de
+          # datos). Se pasan explícitamente para que el build no dependa de los
+          # valores por defecto del código.
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL || 'https://vkduxheifqmomtazolku.supabase.co' }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_0qxowk5wAIYyUvfMzK6qCg_YQATb8uT' }}
