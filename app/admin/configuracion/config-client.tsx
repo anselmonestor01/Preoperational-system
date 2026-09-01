@@ -7,6 +7,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { friendlyError } from "@/lib/errors";
+import { useDialog } from "@/components/ui/dialogs";
 import type { ItemType } from "@/lib/types";
 
 type Item = { id: string; name: string; item_type: ItemType; required: boolean; is_safety_critical: boolean; active: boolean; sort_order: number };
@@ -18,6 +19,7 @@ const TYPE_LABEL: Record<ItemType, string> = { nivel: "Nivel", estado: "Bueno / 
 export default function ConfigClient({ categories, org, activeVersion }: { categories: Cat[]; org: Org; activeVersion: number | null }) {
   const supabase = createClient();
   const router = useRouter();
+  const dialog = useDialog();
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState("");
   const [maxBad, setMaxBad] = useState(org?.max_non_critical_bad ?? 3);
@@ -38,13 +40,26 @@ export default function ConfigClient({ categories, org, activeVersion }: { categ
     show("Pregunta agregada"); router.refresh();
   }
   async function removeItem(id: string) {
-    if (!window.confirm("¿Quitar esta pregunta del checklist? (No afecta inspecciones ya realizadas.)")) return;
+    const ok = await dialog.confirm({
+      title: "Quitar pregunta del checklist",
+      message: "Dejará de aparecer en las próximas inspecciones. Las inspecciones ya realizadas no se ven afectadas.",
+      confirmLabel: "Quitar pregunta",
+      tone: "danger",
+    });
+    if (!ok) return;
     const { error } = await supabase.from("checklist_items").update({ active: false }).eq("id", id);
     if (error) return show(friendlyError(error));
     show("Pregunta desactivada"); router.refresh();
   }
   async function addCategory() {
-    const name = window.prompt("Nombre de la nueva etapa (categoría):");
+    const name = await dialog.prompt({
+      title: "Nueva etapa del checklist",
+      message: "Agrupa las preguntas que el conductor revisará en un mismo paso.",
+      label: "Nombre de la etapa",
+      placeholder: "Ej. Luces, Cabina, Llantas…",
+      required: true,
+      confirmLabel: "Crear etapa",
+    });
     if (!name?.trim()) return;
     const key = name.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "_");
     const { error } = await supabase.from("checklist_categories").insert({ organization_id: org.id, key, name: name.trim(), sort_order: categories.length + 1 });
@@ -52,8 +67,15 @@ export default function ConfigClient({ categories, org, activeVersion }: { categ
     show("Etapa agregada"); router.refresh();
   }
   async function publish() {
-    const note = window.prompt("Describe brevemente el cambio (ej. 'Se agregó revisión de extintor'):") ?? "";
-    if (!window.confirm("¿Publicar una nueva versión del checklist con la estructura actual?\n\nLas inspecciones antiguas conservan su versión.")) return;
+    const note = await dialog.prompt({
+      title: "Publicar nueva versión del checklist",
+      message: "La estructura actual pasará a usarse en las próximas inspecciones. Las ya enviadas conservan la versión con la que se hicieron.",
+      label: "¿Qué cambió?",
+      placeholder: "Ej. Se agregó revisión de extintor",
+      required: true,
+      confirmLabel: "Publicar versión",
+    });
+    if (note === null) return;
     setBusy(true);
     const { data, error } = await supabase.rpc("publish_checklist_version", { p_note: note });
     setBusy(false);

@@ -8,11 +8,13 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { fmtDateTime, fmtKm } from "@/lib/format";
 import { friendlyError } from "@/lib/errors";
+import { useDialog } from "@/components/ui/dialogs";
 import EvidenceGallery from "@/components/EvidenceGallery";
 
 export default function InspectionActions({ id }: { id: string }) {
   const supabase = createClient();
   const router = useRouter();
+  const dialog = useDialog();
   const [open, setOpen] = useState(false);
   const [detail, setDetail] = useState<any>(null);
   const [answers, setAnswers] = useState<any[]>([]);
@@ -43,7 +45,16 @@ export default function InspectionActions({ id }: { id: string }) {
   }
 
   async function doOverride(authorize: boolean) {
-    const reason = window.prompt(`Motivo del override (${authorize ? "AUTORIZAR" : "RECHAZAR"}):`);
+    const reason = await dialog.prompt({
+      title: authorize ? "Autorizar manualmente" : "Rechazar manualmente",
+      message: "Queda registrado quién cambió el veredicto del sistema y por qué.",
+      label: "Motivo",
+      placeholder: "Explica el motivo (mínimo 3 caracteres)",
+      required: true,
+      multiline: true,
+      confirmLabel: authorize ? "Autorizar" : "Rechazar",
+      tone: authorize ? "default" : "danger",
+    });
     if (!reason || reason.trim().length < 3) return;
     setBusy(true);
     const { error } = await supabase.rpc("override_authorization", { p_inspection_id: id, p_authorize: authorize, p_reason: reason });
@@ -52,7 +63,16 @@ export default function InspectionActions({ id }: { id: string }) {
     show("Override aplicado"); setOpen(false); router.refresh();
   }
   async function doVoid() {
-    const reason = window.prompt("Motivo de anulación:");
+    const reason = await dialog.prompt({
+      title: "Anular inspección",
+      message: "La inspección deja de contar para la operación, pero se conserva en el historial.",
+      label: "Motivo de anulación",
+      placeholder: "Explica el motivo (mínimo 3 caracteres)",
+      required: true,
+      multiline: true,
+      confirmLabel: "Anular",
+      tone: "danger",
+    });
     if (!reason || reason.trim().length < 3) return;
     setBusy(true);
     const { error } = await supabase.rpc("void_inspection", { p_inspection_id: id, p_reason: reason });
@@ -60,8 +80,39 @@ export default function InspectionActions({ id }: { id: string }) {
     if (error) return show(friendlyError(error, "No fue posible anular."));
     show("Inspección anulada"); setOpen(false); router.refresh();
   }
+  // Borrado definitivo: elimina la inspección y todo su rastro. Si la ronda se
+  // queda sin inspecciones, el propio RPC la elimina, de modo que el historial
+  // queda como si nunca se hubiera hecho esa ronda de prueba.
+  async function doDelete() {
+    const password = await dialog.confirmWithPassword({
+      title: "Eliminar inspección definitivamente",
+      message: `Se borrará la inspección de ${detail?.vehicle_plate ?? "este vehículo"} junto con sus respuestas, novedades y evidencias fotográficas. Si es la única inspección de su ronda, la ronda también se eliminará.`,
+      warning: "Esta acción no se puede deshacer.",
+      confirmLabel: "Eliminar todo el registro",
+      tone: "danger",
+    });
+    if (password === null) return;
+
+    setBusy(true);
+    const { data, error } = await supabase.rpc("delete_inspection", { p_inspection_id: id, p_password: password });
+    if (error) { setBusy(false); return show(friendlyError(error, "No fue posible eliminar la inspección.")); }
+
+    const paths: string[] = data?.storage_paths ?? [];
+    if (paths.length) await supabase.storage.from("evidence").remove(paths);
+
+    setBusy(false);
+    show(data?.round_deleted ? `Inspección eliminada. La ronda "${data.round_label}" quedó vacía y también se eliminó.` : "Inspección eliminada");
+    setOpen(false);
+    router.refresh();
+  }
+
   async function doRelease() {
-    if (!window.confirm("¿Liberar el vehículo para re-inspección en esta ronda? La inspección se conserva.")) return;
+    const ok = await dialog.confirm({
+      title: "Liberar vehículo",
+      message: "Podrá volver a inspeccionarse en esta ronda. La inspección actual se conserva.",
+      confirmLabel: "Liberar",
+    });
+    if (!ok) return;
     setBusy(true);
     const { error } = await supabase.rpc("release_inspection", { p_inspection_id: id });
     setBusy(false);
@@ -138,6 +189,16 @@ export default function InspectionActions({ id }: { id: string }) {
                 {detail.status !== "voided" && detail.authorized === true && <button className="btn btn-danger btn-sm" disabled={busy} onClick={() => doOverride(false)}>Override: Rechazar</button>}
                 {detail.status !== "voided" && <button className="btn btn-ghost btn-sm" disabled={busy} onClick={doRelease}>Liberar vehículo</button>}
                 {detail.status !== "voided" && <button className="btn btn-danger btn-sm" disabled={busy} onClick={doVoid}>Anular</button>}
+              </div>
+              <div style={{ marginTop: 18, paddingTop: 14, borderTop: "1px solid var(--line-soft)" }}>
+                <div className="cell-sub" style={{ marginBottom: 8 }}>
+                  <b>Depurar historial.</b> Anular conserva el registro; eliminar lo borra por completo.
+                  Úsalo para quitar inspecciones de prueba.
+                </div>
+                <button className="btn btn-ghost btn-sm" disabled={busy} onClick={doDelete}
+                  style={{ color: "var(--red)", borderColor: "rgba(198,66,60,.25)" }}>
+                  Eliminar inspección definitivamente
+                </button>
               </div>
             </>)}
           </div>

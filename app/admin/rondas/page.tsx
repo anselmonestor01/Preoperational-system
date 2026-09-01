@@ -2,6 +2,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { fmtDateTime, fmtTime } from "@/lib/format";
 import NewRoundButton from "./new-round-button";
+import RoundActions from "./round-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -78,7 +79,10 @@ export default async function RondasPage() {
                     {r.status === "open" ? <span className="badge ok">Abierta</span> : <span className="badge neutral">Cerrada</span>}
                     {r.responsible ? <span className="cell-sub"> · {r.responsible}</span> : null}
                   </div>
-                  <div className="cell-sub">{items.length} inspección(es) · {okc} en buen estado · {items.length - okc} con novedades</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                    <span className="cell-sub">{items.length} inspección(es) · {okc} en buen estado · {items.length - okc} con novedades</span>
+                    <RoundActions roundId={r.id} label={r.label} inspections={items.length} />
+                  </div>
                 </div>
                 {items.length > 0 && (
                   <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>

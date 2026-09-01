@@ -16,6 +16,7 @@ export default function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPw, setShowPw] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -72,8 +73,14 @@ export default function LoginForm() {
         </div>
         <div className="form-group">
           <label htmlFor="password">Contraseña</label>
-          <input id="password" type="password" className="manage-input" style={{ width: "100%" }}
-            autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          <div className="pw-field">
+            <input id="password" type={showPw ? "text" : "password"} className="manage-input" style={{ width: "100%" }}
+              autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            <button type="button" className="pw-toggle" onClick={() => setShowPw((s) => !s)}
+              aria-label={showPw ? "Ocultar contraseña" : "Mostrar contraseña"}>
+              {showPw ? "Ocultar" : "Mostrar"}
+            </button>
+          </div>
         </div>
 
         {error && <div className="err-box" style={{ marginBottom: 12 }}>{error}</div>}

@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/client";
 import { initials } from "@/lib/format";
 import { friendlyError } from "@/lib/errors";
 import { compressImage, AVATAR_PRESET } from "@/lib/image";
+import { useDialog } from "@/components/ui/dialogs";
 
 export interface DriverRow {
   id: string; full_name: string; license: string | null; whatsapp: string | null;
@@ -18,6 +19,7 @@ export interface DriverRow {
 export default function DriversClient({ rows, photoMap, orgId }: { rows: DriverRow[]; photoMap: Record<string, string>; orgId: string }) {
   const supabase = createClient();
   const router = useRouter();
+  const dialog = useDialog();
   const [q, setQ] = useState("");
   const [toast, setToast] = useState("");
   const [edit, setEdit] = useState<DriverRow | null>(null);
@@ -40,7 +42,14 @@ export default function DriversClient({ rows, photoMap, orgId }: { rows: DriverR
     setRevealed((r) => ({ ...r, [d.id]: data.pin }));
   }
   async function toggleActive(d: DriverRow) {
-    if (!window.confirm(`${d.active ? "Marcar inactivo" : "Marcar activo"} a ${d.full_name}?`)) return;
+    const ok = await dialog.confirm({
+      title: d.active ? "Marcar inactivo" : "Reactivar conductor",
+      message: d.active
+        ? `${d.full_name} dejará de aparecer para nuevas inspecciones. Su historial se conserva.`
+        : `${d.full_name} volverá a estar disponible para realizar inspecciones.`,
+      confirmLabel: d.active ? "Marcar inactivo" : "Reactivar",
+    });
+    if (!ok) return;
     setBusy(d.id);
     const { error } = await supabase.from("drivers").update({ active: !d.active }).eq("id", d.id);
     setBusy(null);
@@ -48,8 +57,23 @@ export default function DriversClient({ rows, photoMap, orgId }: { rows: DriverR
     show("Conductor actualizado"); router.refresh();
   }
   async function del(d: DriverRow, mode: "archive" | "hard") {
-    if (mode === "hard" && !window.confirm(`⚠ ELIMINAR DEFINITIVAMENTE a ${d.full_name}\n\nSe elimina su identidad operativa. El historial de inspecciones conserva su nombre. No se puede deshacer.\n\n¿Continuar?`)) return;
-    if (mode === "archive" && !window.confirm(`¿Marcar inactivo a ${d.full_name}? No aparecerá para nuevas inspecciones; su historial se conserva.`)) return;
+    if (mode === "hard") {
+      const ok = await dialog.confirm({
+        title: `Eliminar a ${d.full_name}`,
+        message: "Se elimina su identidad operativa. El historial de inspecciones conserva su nombre.",
+        warning: "Esta acción no se puede deshacer.",
+        confirmLabel: "Eliminar definitivamente",
+        tone: "danger",
+      });
+      if (!ok) return;
+    } else {
+      const ok = await dialog.confirm({
+        title: "Marcar inactivo",
+        message: `${d.full_name} no aparecerá para nuevas inspecciones; su historial se conserva.`,
+        confirmLabel: "Marcar inactivo",
+      });
+      if (!ok) return;
+    }
     setBusy(d.id);
     const { error } = await supabase.rpc("delete_driver", { p_driver_id: d.id, p_mode: mode });
     setBusy(null);

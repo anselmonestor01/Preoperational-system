@@ -220,12 +220,41 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
   if (loading) {
     return <div className="driver-shell"><div className="spinner" /></div>;
   }
+  // Sin ronda abierta el conductor no puede inspeccionar, pero la pantalla no
+  // debe ser un callejón sin salida: se ofrece reintentar (la ronda puede
+  // abrirse en cualquier momento desde administración) y cerrar sesión.
   if (!round) {
     return (
-      <div className="driver-shell"><div className="d-body">
-        <div className="stub"><h3>Sin ronda abierta</h3>
-          <p>No hay una ronda de inspección abierta. Solicite a administración que inicie una ronda.</p></div>
-      </div></div>
+      <div className="driver-shell">
+        <div className="d-body d-home2">
+          <div className="home2-header">
+            <div>
+              <div><span className="home2-brandtext"><span className="l1">PREOPERATIONAL</span><span className="l2">SYSTEM</span></span></div>
+              <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 3 }}>Inspección de flotas</div>
+            </div>
+            <div className="home2-status"><span className="home2-dot" style={{ background: "var(--orange)", boxShadow: "0 0 0 3px rgba(201,122,26,.18)" }} />En espera</div>
+          </div>
+
+          <div className="home2-cta" style={{ marginTop: 8 }}>
+            <div className="home2-cta-kicker" style={{ color: "var(--orange)", background: "var(--orange-soft)", borderColor: "rgba(201,122,26,.18)" }}>
+              Ronda no iniciada
+            </div>
+            <h1 className="home2-cta-title">Aún no hay una ronda abierta</h1>
+            <p className="home2-cta-sub">
+              Las inspecciones se habilitan cuando administración inicia la ronda del turno.
+              Vuelve a consultar en unos minutos.
+            </p>
+            <button className="home2-btn" onClick={() => { setLoading(true); loadData(); }}>
+              Volver a consultar
+              <svg viewBox="0 0 24 24" fill="none"><path d="M21 12a9 9 0 1 1-3-6.7M21 4v4h-4" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </button>
+          </div>
+
+          <form action="/auth/signout" method="post" style={{ marginTop: "auto" }}>
+            <button type="submit" className="home2-admin">Cerrar sesión del kiosco</button>
+          </form>
+        </div>
+      </div>
     );
   }
 

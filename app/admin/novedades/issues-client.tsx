@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { fmtDate } from "@/lib/format";
 import { friendlyError } from "@/lib/errors";
+import { useDialog } from "@/components/ui/dialogs";
 import EvidenceGallery from "@/components/EvidenceGallery";
 
 export interface IssueRow {
@@ -19,13 +20,24 @@ export interface IssueRow {
 export default function IssuesClient({ issues, evidence }: { issues: IssueRow[]; evidence: Record<string, string[]> }) {
   const supabase = createClient();
   const router = useRouter();
+  const dialog = useDialog();
   const [busy, setBusy] = useState<string | null>(null);
   const [toast, setToast] = useState("");
   const show = (m: string) => { setToast(m); setTimeout(() => setToast(""), 2800); };
 
   async function setStatus(iss: IssueRow, statusValue: string) {
     let note: string | null = null;
-    if (statusValue === "resolved") { note = window.prompt("Nota de resolución (opcional):") ?? null; }
+    if (statusValue === "resolved") {
+      note = await dialog.prompt({
+        title: "Resolver novedad",
+        message: "Deja constancia de cómo se resolvió (opcional, pero recomendado para la trazabilidad).",
+        label: "Nota de resolución",
+        placeholder: "Ej. Se reemplazó la bombilla del stop derecho",
+        multiline: true,
+        confirmLabel: "Marcar resuelta",
+      });
+      if (note === null) return;
+    }
     setBusy(iss.id);
     const { error } = await supabase.rpc("set_issue_status", { p_issue_id: iss.id, p_status: statusValue, p_note: note });
     setBusy(null);

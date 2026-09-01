@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { fmtDate } from "@/lib/format";
 import { friendlyError } from "@/lib/errors";
+import { useDialog } from "@/components/ui/dialogs";
 
 export interface VehicleRow {
   id: string; plate: string; reference: string | null; model: string | null;
@@ -28,6 +29,7 @@ const AVAIL: Record<string, { cls: string; dot: string; label: string }> = {
 export default function VehiclesClient({ rows, opsBy, roundLabel }: { rows: VehicleRow[]; opsBy: Record<string, number>; roundLabel: string }) {
   const supabase = createClient();
   const router = useRouter();
+  const dialog = useDialog();
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [toast, setToast] = useState("");
@@ -41,7 +43,14 @@ export default function VehiclesClient({ rows, opsBy, roundLabel }: { rows: Vehi
   const blockedCount = active.filter((v) => v.availability !== "available").length;
 
   async function block(v: VehicleRow) {
-    const reason = window.prompt(`Motivo del bloqueo administrativo de ${v.plate}:`);
+    const reason = await dialog.prompt({
+      title: `Bloquear ${v.plate}`,
+      message: "El vehículo no podrá operar hasta que se desbloquee. El motivo queda registrado.",
+      label: "Motivo del bloqueo",
+      placeholder: "Ej. Mantenimiento programado",
+      required: true,
+      confirmLabel: "Bloquear vehículo",
+    });
     if (reason === null) return;
     if (!reason.trim()) return show("Indica el motivo del bloqueo.");
     setBusy(v.id);
@@ -59,7 +68,12 @@ export default function VehiclesClient({ rows, opsBy, roundLabel }: { rows: Vehi
   }
   async function release(v: VehicleRow) {
     if (!v.current_round_inspection_id) return;
-    if (!window.confirm(`¿Liberar ${v.plate} para una nueva inspección en la ronda? La inspección actual se conserva en el historial.`)) return;
+    const ok = await dialog.confirm({
+      title: `Liberar ${v.plate}`,
+      message: "Podrá volver a inspeccionarse en esta ronda. La inspección actual se conserva en el historial.",
+      confirmLabel: "Liberar",
+    });
+    if (!ok) return;
     setBusy(v.id);
     const { error } = await supabase.rpc("release_inspection", { p_inspection_id: v.current_round_inspection_id });
     setBusy(null);
@@ -67,7 +81,12 @@ export default function VehiclesClient({ rows, opsBy, roundLabel }: { rows: Vehi
     show(`${v.plate} liberado`); router.refresh();
   }
   async function resolveAll(v: VehicleRow) {
-    if (!window.confirm(`¿Marcar como resueltas todas las novedades de ${v.plate} y liberarlo?`)) return;
+    const ok = await dialog.confirm({
+      title: `Resolver novedades de ${v.plate}`,
+      message: "Se marcarán como resueltas todas sus novedades abiertas y el vehículo quedará liberado para operar.",
+      confirmLabel: "Resolver y liberar",
+    });
+    if (!ok) return;
     setBusy(v.id);
     const { data: iss } = await supabase.from("issues").select("id").eq("vehicle_id", v.id).neq("status", "resolved");
     for (const i of iss ?? []) {
@@ -86,8 +105,23 @@ export default function VehiclesClient({ rows, opsBy, roundLabel }: { rows: Vehi
     show(`${v.plate} reintegrado a la flota`); router.refresh();
   }
   async function del(v: VehicleRow, mode: "archive" | "hard") {
-    if (mode === "hard" && !window.confirm(`⚠ ELIMINAR DEFINITIVAMENTE ${v.plate}\n\nSe borrará el vehículo y TODO su historial (inspecciones, novedades, evidencias). Esta acción NO se puede deshacer.\n\n¿Continuar?`)) return;
-    if (mode === "archive" && !window.confirm(`¿Archivar ${v.plate}? Deja de operar pero conserva su historial. Podrás reintegrarlo luego.`)) return;
+    if (mode === "hard") {
+      const ok = await dialog.confirm({
+        title: `Eliminar ${v.plate}`,
+        message: "Se borrará el vehículo y TODO su historial: inspecciones, novedades y evidencias fotográficas.",
+        warning: "Esta acción no se puede deshacer.",
+        confirmLabel: "Eliminar definitivamente",
+        tone: "danger",
+      });
+      if (!ok) return;
+    } else {
+      const ok = await dialog.confirm({
+        title: `Archivar ${v.plate}`,
+        message: "Deja de operar pero conserva su historial. Podrás reintegrarlo cuando quieras.",
+        confirmLabel: "Archivar",
+      });
+      if (!ok) return;
+    }
     setBusy(v.id);
     const { error } = await supabase.rpc("delete_vehicle", { p_vehicle_id: v.id, p_mode: mode });
     setBusy(null);
