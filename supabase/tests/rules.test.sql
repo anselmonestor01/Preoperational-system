@@ -23,7 +23,7 @@ begin;
 do $$
 declare
   v_org uuid; v_admin uuid; v_drv uuid; v_round uuid;
-  v_vA uuid; v_vB uuid; v_vC uuid;
+  v_vA uuid; v_vB uuid; v_vC uuid; v_vD uuid; v_vE uuid;
   v_crit uuid; v_norm uuid;
   v_res jsonb; v_insp uuid; v_err text; v_other uuid;
   v_p int := 0; v_log text := '';
@@ -134,6 +134,13 @@ begin
   end if;
   v_p := v_p+1; v_log := v_log || '4:IDEMPOTENTE ';
 
+  -- Esa inspección dejó al conductor con un vehículo en ruta. Se cierra aquí
+  -- para que las reglas siguientes se comprueben por su propio motivo y no por
+  -- la regla 14 (un conductor, una salida a la vez).
+  perform public.register_return(
+    (select id from public.inspections
+      where organization_id=v_org and idempotency_key='qa-idem'), 20100, 'medio');
+
   -- =====================================================================
   -- REGLA 5 — Sólo puede haber UNA ronda abierta por organización.
   -- =====================================================================
@@ -166,8 +173,68 @@ begin
   exception when others then
     get stacked diagnostics v_err = message_text;
     if v_err like 'FALLO 7%' then raise; end if;
+    -- Se comprueba el motivo: si rechazara por otra regla, esta prueba estaría
+    -- pasando por casualidad y dejaría de vigilar lo que dice vigilar.
+    if v_err not like '%novedades%' then
+      raise exception 'FALLO 7: rechazó por un motivo distinto al esperado: %', v_err;
+    end if;
   end;
   v_p := v_p+1; v_log := v_log || '7:NOVEDADES_BLOQUEAN ';
+
+  -- =====================================================================
+  -- REGLA 14 — Un conductor no puede sacar un segundo vehículo mientras no
+  --            haya registrado el regreso del primero.
+  --
+  -- Sin esto, la misma persona figuraba conduciendo dos unidades a la vez, con
+  -- kilometrajes que nunca cierran. La regla vive en un disparador de la tabla
+  -- `inspections`, así que protege cualquier vía que abra una operación, no
+  -- sólo `submit_inspection`.
+  -- =====================================================================
+  insert into public.vehicles(organization_id, plate, reference, status)
+    values (v_org,'QA-DDD','Prueba','active'), (v_org,'QA-EEE','Prueba','active');
+  select id into v_vD from public.vehicles where plate='QA-DDD' and organization_id=v_org;
+  select id into v_vE from public.vehicles where plate='QA-EEE' and organization_id=v_org;
+
+  v_res := public.submit_inspection(v_vD, v_drv,
+    jsonb_build_array(jsonb_build_object('category_key','x','item_id',v_norm::text,
+      'item_name','N','item_type','estado','value','bueno')),
+    50000,'lleno','QA','qa-en-ruta-1');
+  if (v_res->>'authorized')::boolean is not true then
+    raise exception 'FALLO 14: la salida de referencia no quedó autorizada';
+  end if;
+  v_insp := (v_res->>'id')::uuid;
+
+  begin
+    perform public.submit_inspection(v_vE, v_drv,
+      jsonb_build_array(jsonb_build_object('category_key','x','item_id',v_norm::text,
+        'item_name','N','item_type','estado','value','bueno')),
+      60000,'lleno','QA','qa-en-ruta-2');
+    raise exception 'FALLO 14: permitió una segunda salida sin registrar el regreso';
+  exception when others then
+    get stacked diagnostics v_err = message_text;
+    if v_err like 'FALLO 14%' then raise; end if;
+    if v_err not like '%en ruta%' then
+      raise exception 'FALLO 14: bloqueó por un motivo inesperado: %', v_err;
+    end if;
+  end;
+  v_p := v_p+1; v_log := v_log || '14:UNA_SALIDA_POR_CONDUCTOR ';
+
+  -- El PIN avisa antes de que el conductor rellene el checklist entero.
+  if (public.claim_driver(v_drv,'9999','disp-qa','Tablet QA')->>'motivo') <> 'en_ruta' then
+    raise exception 'FALLO 14b: el PIN no avisó de que ya tiene un vehículo en ruta';
+  end if;
+  v_p := v_p+1; v_log := v_log || '14b:AVISA_EN_EL_PIN ';
+
+  -- Registrar el regreso lo libera.
+  perform public.register_return(v_insp, 50120, 'medio');
+  v_res := public.submit_inspection(v_vE, v_drv,
+    jsonb_build_array(jsonb_build_object('category_key','x','item_id',v_norm::text,
+      'item_name','N','item_type','estado','value','bueno')),
+    60000,'lleno','QA','qa-en-ruta-3');
+  if (v_res->>'authorized')::boolean is not true then
+    raise exception 'FALLO 14c: tras registrar el regreso seguía bloqueado';
+  end if;
+  v_p := v_p+1; v_log := v_log || '14c:EL_REGRESO_LIBERA ';
 
   -- =====================================================================
   -- REGLA 8 — Borrar una ronda exige la contraseña del administrador, y el

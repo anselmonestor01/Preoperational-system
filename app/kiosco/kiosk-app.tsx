@@ -27,6 +27,8 @@ type CCat = { key: string; name: string; icon: string; items: CItem[] };
 type Veh = { id: string; plate: string; availability: string; admin_block_reason: string | null; open_issue_count: number };
 type Drv = { id: string; full_name: string; photo_path: string | null; photoUrl?: string | null };
 type OpenOp = { id: string; vehicle_plate: string | null; driver_name: string | null; km_inicial: number | null; submitted_at: string | null };
+/** Salida sin regreso registrado, para marcar al conductor como no disponible. */
+type EnRuta = { placa: string | null; desde: string | null };
 
 export default function KioskApp({ orgId }: { profileName: string; orgId: string }) {
   const supabase = createClient();
@@ -37,6 +39,7 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
   const [drivers, setDrivers] = useState<Drv[]>([]);
   const [vehicles, setVehicles] = useState<Veh[]>([]);
   const [openOps, setOpenOps] = useState<OpenOp[]>([]);
+  const [enRuta, setEnRuta] = useState<Record<string, EnRuta>>({});
 
   const [step, setStep] = useState<Step>("home");
   const [driver, setDriver] = useState<{ id: string; name: string } | null>(null);
@@ -65,7 +68,7 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
   }, []);
 
   const loadData = useCallback(async () => {
-    const [{ data: boot }, cats, drv, veh, ops] = await Promise.all([
+    const [{ data: boot }, cats, drv, veh, ops, rutas] = await Promise.all([
       supabase.rpc("app_bootstrap"),
       supabase.from("checklist_versions").select("structure").eq("active", true).maybeSingle(),
       supabase.from("drivers").select("id,full_name,photo_path").eq("active", true).order("full_name"),
@@ -74,6 +77,11 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
       // quien registró la salida, no cualquiera que abra el kiosco.
       supabase.from("inspections").select("id,vehicle_plate,driver_name,km_inicial,submitted_at")
         .eq("operation_status", "open").eq("device_id", deviceId()),
+      // Salidas abiertas de CUALQUIER dispositivo: sirven para marcar a los
+      // conductores que todavía no han registrado su regreso. La consulta de
+      // arriba va filtrada por equipo porque es la del formulario de regreso.
+      supabase.from("inspections").select("driver_id,vehicle_plate,submitted_at")
+        .eq("operation_status", "open").not("driver_id", "is", null),
     ]);
     const activeRound = boot?.active_round ? { id: boot.active_round.id, label: boot.active_round.label } : null;
     setRound(activeRound);
@@ -90,6 +98,12 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
     setDrivers(dRows);
     setVehicles((veh.data as Veh[]) ?? []);
     setOpenOps((ops.data as OpenOp[]) ?? []);
+
+    const porConductor: Record<string, EnRuta> = {};
+    for (const r of (rutas.data as { driver_id: string | null; vehicle_plate: string | null; submitted_at: string | null }[]) ?? []) {
+      if (r.driver_id) porConductor[r.driver_id] = { placa: r.vehicle_plate, desde: r.submitted_at };
+    }
+    setEnRuta(porConductor);
     setLoading(false);
   }, [supabase]);
 
@@ -172,6 +186,16 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
       setDriver({ id: pinFor.id, name: pinFor.full_name });
       setPinFor(null); setPin("");
       showToast("Identidad verificada: " + pinFor.full_name);
+      return;
+    }
+    // Vehículo en ruta sin regreso registrado: la regla la impone la base de
+    // datos; aquí sólo se explica con nombre y hora.
+    if (data?.motivo === "en_ruta") {
+      const desde = data.desde ? ` desde las ${fmtTime(data.desde)}` : "";
+      setPinErr(
+        `Tienes ${data.placa ?? "un vehículo"} en ruta${desde}. ` +
+        `Registra su regreso antes de iniciar otra inspección.`);
+      setPin("");
       return;
     }
     if (data?.motivo === "en_uso") {
@@ -505,6 +529,21 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
             <div className="pick-list">
               {drivers.map((d) => {
                 const sel = driver?.id === d.id;
+                const ruta = enRuta[d.id];
+                // Con un vehículo en ruta no puede iniciar otra inspección. Se
+                // muestra bloqueado aquí, igual que los vehículos, para que no
+                // llegue hasta el PIN sin saber por qué.
+                if (ruta) return (
+                  <div key={d.id} className="pick-row locked" title="Debe registrar el regreso">
+                    <div className="pick-avatar" style={{ background: "var(--orange-soft)", color: "var(--orange)" }}>⏳</div>
+                    <div className="pick-main">
+                      <div className="pick-name" style={{ color: "var(--muted)" }}>{d.full_name}</div>
+                      <div className="pick-sub" style={{ color: "var(--orange)" }}>
+                        {ruta.placa ?? "Vehículo"} en ruta{ruta.desde ? ` desde las ${fmtTime(ruta.desde)}` : ""} · falta registrar el regreso
+                      </div>
+                    </div>
+                  </div>
+                );
                 return (
                   <div key={d.id} className={"pick-row" + (sel ? " selected" : "")} onClick={() => setPinFor(d)}>
                     <div className="pick-avatar">{d.photoUrl ? <img src={d.photoUrl} alt="" className="drv-photo" /> : initials(d.full_name)}</div>

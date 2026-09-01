@@ -65,6 +65,13 @@ audit_logs`
 - **Un perfil, un dispositivo:** `driver_claims` reserva el perfil del conductor
   para el equipo donde escribió su PIN, de modo que dos teléfonos no pueden
   inspeccionar con la misma identidad. La reserva caduca sola a los 45 minutos.
+- **Un conductor, una salida a la vez:** mientras no registre el regreso, no
+  puede iniciar otra inspección. Lo impone un disparador sobre `inspections`
+  (`app.una_operacion_por_conductor`), así que vale para cualquier vía de
+  escritura y no sólo para `submit_inspection`. El kiosco lo muestra antes: el
+  conductor aparece bloqueado en la lista, con la placa y la hora de salida. Si
+  un vehículo nunca vuelve, el administrador libera al conductor anulando la
+  inspección desde el panel.
 - **Avisos en bandeja de salida:** `notifications` encola los mensajes de
   WhatsApp. Una inspección nunca falla porque el proveedor de mensajería esté
   caído; el aviso se envía después.
@@ -123,7 +130,7 @@ que se guarda con bcrypt y sólo puede revelarlo un administrador (acción audit
 app/                    Rutas Next.js (login, kiosco, admin/*, auth)
 components/admin/       Shell del panel (sidebar, topbar)
 lib/                    Clientes Supabase, tipos, helpers (checklist, formato)
-supabase/migrations/    Migraciones SQL versionadas (0001..0018)
+supabase/migrations/    Migraciones SQL versionadas (0001..0019)
 supabase/seed.sql       Datos demo (cliente ficticio de prueba)
 supabase/tests/         Pruebas de las reglas de negocio en PostgreSQL
 tests/                  Pruebas unitarias del cliente (Vitest)
@@ -134,7 +141,7 @@ docs/                   Arquitectura, seguridad, QA
 
 ```bash
 npm test                             # 67 pruebas unitarias del cliente
-psql "$DATABASE_URL" -f supabase/tests/rules.test.sql   # 15 reglas de negocio
+psql "$DATABASE_URL" -f supabase/tests/rules.test.sql   # 18 reglas de negocio
 ```
 
 Las pruebas SQL corren dentro de una transacción que se **revierte**: no dejan
