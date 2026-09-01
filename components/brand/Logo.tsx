@@ -9,6 +9,20 @@
 // Si el logo cambia, se reemplaza `public/marca.svg` y se vuelven a copiar aquí
 // los dos atributos `d`.
 
+/**
+ * Lienzo recortado al dibujo.
+ *
+ * El archivo original declara `viewBox="0 0 1254 1254"`, pero el dibujo sólo
+ * ocupa de 264 a 1075 en horizontal y de 152 a 1004 en vertical: un 65% del
+ * lienzo. Ese aire sobrante hacía que la marca se viera pequeña y despegada del
+ * texto, porque a 44 px de caja el dibujo medía 28 px reales.
+ *
+ * Aquí se recorta a un cuadrado centrado en el dibujo (886 de lado, con el mismo
+ * margen por los cuatro costados), de modo que la marca llena su caja. El
+ * archivo de `public/marca.svg` se conserva tal cual llegó.
+ */
+const VIEWBOX = "226 135 886 886";
+
 type Tone = "brand" | "light";
 
 /** Colores del archivo original. */
@@ -42,7 +56,7 @@ export default function Logo({
     <svg
       width={size}
       height={size}
-      viewBox="0 0 1254 1254"
+      viewBox={VIEWBOX}
       className={className}
       role="img"
       aria-label="Preoperational System"

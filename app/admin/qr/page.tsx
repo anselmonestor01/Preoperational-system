@@ -91,7 +91,7 @@ export default async function QrPage() {
       {/* El cartel. Es lo único que sale al imprimir. */}
       <div className="qr-poster">
         <div className="qr-poster-brand">
-          <Logo size={54} />
+          <Logo size={50} />
           <span><span className="l1">PREOPERATIONAL </span><span className="l2">SYSTEM</span></span>
         </div>
         <div className="qr-poster-title">Inspección preoperacional</div>

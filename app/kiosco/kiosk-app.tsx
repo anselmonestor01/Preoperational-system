@@ -438,7 +438,7 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
         <div className="d-body d-home2">
           <div className="home2-header">
             <div className="home2-brand">
-              <span className="home2-logo"><Logo size={42} /></span>
+              <span className="home2-logo"><Logo size={38} /></span>
               <span className="home2-brandtext"><span className="l1">PREOPERATIONAL</span><span className="l2">SYSTEM</span></span>
             </div>
             <OfflineBadge enLinea={enLinea} pendientes={pendientes} />
