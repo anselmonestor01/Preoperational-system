@@ -1,5 +1,13 @@
 // Marca de Preoperational System.
 //
+// CÓMO SUSTITUIR ESTE DIBUJO POR EL ARCHIVO ORIGINAL
+// Este SVG es una reconstrucción hecha a partir de una imagen del logo. Para
+// usar el archivo real, basta con:
+//   1. copiar el .svg original a `public/marca.svg`, y
+//   2. reemplazar el <svg> de abajo por:
+//        <img src="/marca.svg" width={size} height={size} alt="Preoperational System" />
+// El resto del sistema no cambia: todas las pantallas usan este componente.
+//
 // POR QUÉ ES UN SVG EN CÓDIGO Y NO UNA IMAGEN
 //  · Nítido en cualquier tamaño: el mismo dibujo sirve para el favicon de 28 px
 //    y para el cartel impreso del patio, sin versiones sueltas que mantener.
@@ -39,41 +47,48 @@ export default function Logo({
       aria-label="Preoperational System"
       shapeRendering="geometricPrecision"
     >
-      {/* Hexágono: el contenedor de la marca */}
+      {/* Hexágono */}
       <path
-        d="M256 62 L424 160 L424 352 L256 450 L88 352 L88 160 Z"
+        d="M256 60 L424 158 L424 354 L256 452 L88 354 L88 158 Z"
         stroke={c.trazo}
-        strokeWidth={28}
+        strokeWidth={27}
         strokeLinejoin="round"
       />
 
-      {/* Camión: furgón y cabina */}
       <g fill={c.trazo}>
-        <path d="M136 182 H206 V318 H136 Z" />
-        <path d="M216 190 H330 a28 28 0 0 1 28 28 V318 H216 Z" />
+        {/* Furgón: cara lateral con el techo en perspectiva */}
+        <path d="M138 186 L214 166 L214 330 L138 330 Z" />
+        {/* Cabina: techo inclinado y frente redondeado */}
+        <path d="M222 170 L318 170 Q352 170 358 198 L366 246 L366 330 L222 330 Z" />
+        {/* Espejo retrovisor */}
+        <path d="M366 204 L386 200 L386 232 L366 228 Z" />
       </g>
 
-      {/* Huecos: separan furgón de cabina, abren parabrisas, rejilla y ruedas */}
       <g fill={c.hueco}>
-        <rect x="202" y="176" width="12" height="148" />
-        <path d="M232 206 H336 a10 10 0 0 1 10 10 v34 a10 10 0 0 1 -10 10 H230 a10 10 0 0 1 -10 -10 v-34 a10 10 0 0 1 10 -10 Z" />
-        <rect x="238" y="278" width="100" height="12" rx="6" />
-        <rect x="238" y="297" width="100" height="12" rx="6" />
-        <circle cx="230" cy="320" r="31" />
-        <circle cx="342" cy="320" r="31" />
+        {/* Separación entre furgón y cabina */}
+        <rect x="210" y="160" width="12" height="176" />
+        {/* Parabrisas */}
+        <path d="M240 196 L330 196 Q344 196 348 210 L354 244 Q356 254 344 254 L240 254 Q230 254 230 244 L230 206 Q230 196 240 196 Z" />
+        {/* Rejilla */}
+        <rect x="252" y="272" width="98" height="12" rx="6" />
+        <rect x="252" y="292" width="98" height="12" rx="6" />
+        <rect x="252" y="312" width="76" height="12" rx="6" />
+        {/* Pasos de rueda */}
+        <circle cx="238" cy="332" r="33" />
+        <circle cx="344" cy="332" r="33" />
       </g>
 
       <g fill={c.trazo}>
-        <circle cx="230" cy="320" r="23" />
-        <circle cx="342" cy="320" r="23" />
+        <circle cx="238" cy="332" r="24" />
+        <circle cx="344" cy="332" r="24" />
       </g>
 
-      {/* Visto bueno. El trazo del color del fondo lo despega del camión y del
-          hexágono sin necesidad de recortes. */}
-      <path d="M232 374 L288 428 L462 258" stroke={c.hueco} strokeWidth={54}
-            strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M232 374 L288 428 L462 258" stroke={c.visto} strokeWidth={38}
-            strokeLinecap="round" strokeLinejoin="round" />
+      {/* Visto bueno: se afila hacia la punta, como el original. La copia del
+          color del fondo lo despega del camión y del hexágono. */}
+      <path d="M206 380 L284 452 L492 240 L462 218 L286 396 L238 340 Z"
+            fill={c.hueco} stroke={c.hueco} strokeWidth={26} strokeLinejoin="round" />
+      <path d="M214 386 L284 444 L478 250 L458 232 L286 388 L242 348 Z"
+            fill={c.visto} stroke={c.visto} strokeWidth={3} strokeLinejoin="round" />
     </svg>
   );
 }

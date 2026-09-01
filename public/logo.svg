@@ -1,28 +1,40 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
-  <path d="M256 62 L424 160 L424 352 L256 450 L88 352 L88 160 Z"
-        stroke="#0B2545" stroke-width="28" stroke-linejoin="round"/>
+  
+  <!-- Hexágono, esquinas redondeadas -->
+  <path d="M256 60 L424 158 L424 354 L256 452 L88 354 L88 158 Z"
+        stroke="#0B2545" stroke-width="27" stroke-linejoin="round"/>
 
   <g fill="#0B2545">
-    <path d="M136 182 H206 V318 H136 Z"/>
-    <path d="M216 190 H330 a28 28 0 0 1 28 28 V318 H216 Z"/>
+    <!-- Furgón: cara lateral + techo en perspectiva -->
+    <path d="M138 186 L214 166 L214 330 L138 330 Z"/>
+    <!-- Cabina: techo inclinado y frente redondeado -->
+    <path d="M222 170 L318 170 Q352 170 358 198 L366 246 L366 330 L222 330 Z"/>
+    <!-- Espejo retrovisor -->
+    <path d="M366 204 L386 200 L386 232 L366 228 Z"/>
   </g>
 
   <g fill="#FFFFFF">
-    <rect x="202" y="176" width="12" height="148"/>
-    <path d="M232 206 H336 a10 10 0 0 1 10 10 v34 a10 10 0 0 1 -10 10 H230 a10 10 0 0 1 -10 -10 v-34 a10 10 0 0 1 10 -10 Z"/>
-    <rect x="238" y="278" width="100" height="12" rx="6"/>
-    <rect x="238" y="297" width="100" height="12" rx="6"/>
-    <circle cx="230" cy="320" r="31"/>
-    <circle cx="342" cy="320" r="31"/>
+    <!-- Separación furgón / cabina -->
+    <rect x="210" y="160" width="12" height="176"/>
+    <!-- Parabrisas -->
+    <path d="M240 196 L330 196 Q344 196 348 210 L354 244 Q356 254 344 254 L240 254 Q230 254 230 244 L230 206 Q230 196 240 196 Z"/>
+    <!-- Rejilla -->
+    <rect x="252" y="272" width="98" height="12" rx="6"/>
+    <rect x="252" y="292" width="98" height="12" rx="6"/>
+    <rect x="252" y="312" width="76" height="12" rx="6"/>
+    <!-- Pasos de rueda -->
+    <circle cx="238" cy="332" r="33"/>
+    <circle cx="344" cy="332" r="33"/>
   </g>
 
   <g fill="#0B2545">
-    <circle cx="230" cy="320" r="23"/>
-    <circle cx="342" cy="320" r="23"/>
+    <circle cx="238" cy="332" r="24"/>
+    <circle cx="344" cy="332" r="24"/>
   </g>
 
-  <path d="M232 374 L288 428 L462 258" stroke="#FFFFFF" stroke-width="54"
-        stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M232 374 L288 428 L462 258" stroke="#2E6BB8" stroke-width="38"
-        stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Visto bueno: swoosh que se afila hacia la punta -->
+  <path d="M206 380 L284 452 L492 240 L462 218 L286 396 L238 340 Z"
+        fill="#FFFFFF" stroke="#FFFFFF" stroke-width="26" stroke-linejoin="round"/>
+  <path d="M214 386 L284 444 L478 250 L458 232 L286 388 L242 348 Z"
+        fill="#2E6BB8" stroke="#2E6BB8" stroke-width="3" stroke-linejoin="round"/>
 </svg>
