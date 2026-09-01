@@ -1941,6 +1941,15 @@ input::placeholder, textarea::placeholder{ color:var(--muted); opacity:1; }
 .btn-danger:hover{ background:#A9332E; transform:translateY(-1px); }
 .btn-danger:disabled{ background:#E0B3B0; box-shadow:none; cursor:not-allowed; transform:none; }
 
+/* Contexto de la salida al registrar el regreso: deja claro que esa operación
+   pertenece a este dispositivo y no a cualquiera. */
+.device-note{
+  display:flex; align-items:center; gap:8px;
+  background:var(--blue-soft); color:var(--blue-dark);
+  border-radius:12px; padding:10px 13px; margin-bottom:12px;
+  font-size:12.5px; font-weight:600; line-height:1.45;
+}
+
 /* =========================================================
    RECORTE DE LA FOTO DE PERFIL
    ========================================================= */

@@ -8,10 +8,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { optionsFor, severityOf, previewResult } from "@/lib/checklist";
-import { fmtKm, initials } from "@/lib/format";
+import { fmtKm, fmtTime, initials } from "@/lib/format";
 import { compressImage, EVIDENCE_PRESET } from "@/lib/image";
 import { friendlyError } from "@/lib/errors";
 import { KM_MAX, soloDigitos, kmValido, kmRegresoValido, LIMITES } from "@/lib/validation";
+import { deviceId, deviceLabel } from "@/lib/device";
 import {
   encolar, leerCola, desencolar, marcarIntento, esErrorDeRed,
   guardarBorrador, leerBorrador, borrarBorrador,
@@ -24,7 +25,7 @@ type CItem = { id: string; name: string; item_type: ItemType; is_safety_critical
 type CCat = { key: string; name: string; icon: string; items: CItem[] };
 type Veh = { id: string; plate: string; availability: string; admin_block_reason: string | null; open_issue_count: number };
 type Drv = { id: string; full_name: string; photo_path: string | null; photoUrl?: string | null };
-type OpenOp = { id: string; vehicle_plate: string | null; driver_name: string | null; km_inicial: number | null };
+type OpenOp = { id: string; vehicle_plate: string | null; driver_name: string | null; km_inicial: number | null; submitted_at: string | null };
 
 export default function KioskApp({ orgId }: { profileName: string; orgId: string }) {
   const supabase = createClient();
@@ -68,7 +69,10 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
       supabase.from("checklist_versions").select("structure").eq("active", true).maybeSingle(),
       supabase.from("drivers").select("id,full_name,photo_path").eq("active", true).order("full_name"),
       supabase.from("vehicle_status_view").select("id,plate,availability,admin_block_reason,open_issue_count").eq("status", "active").order("plate"),
-      supabase.from("inspections").select("id,vehicle_plate,driver_name,km_inicial").eq("operation_status", "open"),
+      // Sólo las operaciones abiertas de ESTE dispositivo: el regreso lo cierra
+      // quien registró la salida, no cualquiera que abra el kiosco.
+      supabase.from("inspections").select("id,vehicle_plate,driver_name,km_inicial,submitted_at")
+        .eq("operation_status", "open").eq("device_id", deviceId()),
     ]);
     const activeRound = boot?.active_round ? { id: boot.active_round.id, label: boot.active_round.label } : null;
     setRound(activeRound);
@@ -151,19 +155,33 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
   const [pin, setPin] = useState("");
   const [pinErr, setPinErr] = useState("");
   const [pinBusy, setPinBusy] = useState(false);
+  // Verifica el PIN y RESERVA el perfil para este dispositivo en un solo paso.
+  // Así dos teléfonos no pueden inspeccionar con la misma identidad a la vez.
   async function confirmPin() {
     if (!pinFor) return;
     setPinBusy(true); setPinErr("");
-    const { data, error } = await supabase.rpc("verify_driver_pin", { p_driver_id: pinFor.id, p_pin: pin });
+    const { data, error } = await supabase.rpc("claim_driver", {
+      p_driver_id: pinFor.id, p_pin: pin,
+      p_device_id: deviceId(), p_device_label: deviceLabel(),
+    });
     setPinBusy(false);
-    if (error) { setPinErr("Error al verificar. Intente de nuevo."); return; }
+    if (error) { setPinErr(friendlyError(error, "Error al verificar. Intenta de nuevo.")); return; }
+
     if (data?.ok) {
       setDriver({ id: pinFor.id, name: pinFor.full_name });
       setPinFor(null); setPin("");
       showToast("Identidad verificada: " + pinFor.full_name);
-    } else {
-      setPinErr("PIN incorrecto. Inténtalo de nuevo."); setPin("");
+      return;
     }
+    if (data?.motivo === "en_uso") {
+      const desde = data.desde ? ` desde ${fmtTime(data.desde)}` : "";
+      setPinErr(
+        `Este perfil ya está en uso en ${data.dispositivo}${desde}. ` +
+        `Termina o cierra esa inspección antes de usarlo aquí.`);
+      setPin("");
+      return;
+    }
+    setPinErr("PIN incorrecto. Inténtalo de nuevo."); setPin("");
   }
 
   // ---- Issue sheet (novedad + evidencia) ----
@@ -283,6 +301,26 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
 
     setSubmitting(false);
     await borrarBorrador();
+
+    // Vincular la inspección a ESTE dispositivo: el regreso se le ofrecerá sólo
+    // a él, no a cualquiera que abra el kiosco.
+    // Ninguno de estos pasos debe hacer fallar una inspección ya registrada:
+    // la inspección es el dato crítico y ya está guardada en el servidor.
+    try {
+      const inspId = (data as { id?: string } | null)?.id;
+      if (inspId) {
+        await supabase.rpc("bind_inspection_device", { p_inspection_id: inspId, p_device_id: deviceId() });
+        // Recordatorio de regreso: se ENCOLA, no se envía aquí.
+        await supabase.rpc("enqueue_return_reminder", { p_inspection_id: inspId });
+      }
+      // El perfil deja de estar reservado: el conductor terminó su inspección.
+      if (driver) {
+        await supabase.rpc("release_driver_claim", { p_driver_id: driver.id, p_device_id: deviceId() });
+      }
+    } catch {
+      /* la inspección ya quedó registrada; esto es accesorio */
+    }
+
     setResult(data);
     setStep("final");
     loadData();
@@ -736,11 +774,20 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
           <div className="sheet-head"><div><div className="sheet-title">Registrar regreso</div>
             <div className="cell-sub">Operaciones abiertas</div></div>
             <button className="sheet-close" onClick={() => setCierreOp(null)}>✕</button></div>
+          {/* Sólo aparecen las salidas registradas DESDE ESTE dispositivo. Si hay
+              una sola, ni siquiera se elige: se asigna automáticamente. */}
           {openOps.length > 1 && (
             <select className="select" style={{ width: "100%", marginBottom: 12 }} value={cierreOp?.id}
               onChange={(e) => setCierreOp(openOps.find((o) => o.id === e.target.value) ?? null)}>
               {openOps.map((o) => <option key={o.id} value={o.id}>{o.vehicle_plate} · {o.driver_name}</option>)}
             </select>
+          )}
+          {cierreOp && (
+            <div className="device-note">
+              Salida registrada desde este dispositivo
+              {cierreOp.submitted_at ? ` a las ${fmtTime(cierreOp.submitted_at)}` : ""}
+              {cierreOp.driver_name ? ` por ${cierreOp.driver_name}` : ""}.
+            </div>
           )}
           {cierreOp && (<>
             <div className="sum-row"><span className="k">Vehículo</span><span className="v">{cierreOp.vehicle_plate}</span></div>
