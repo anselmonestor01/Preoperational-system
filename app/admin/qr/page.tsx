@@ -22,6 +22,7 @@ import { headers } from "next/headers";
 import QRCode from "qrcode";
 import { createClient } from "@/lib/supabase/server";
 import PrintButton from "./print-button";
+import Logo from "@/components/brand/Logo";
 
 export const dynamic = "force-dynamic";
 
@@ -90,7 +91,8 @@ export default async function QrPage() {
       {/* El cartel. Es lo único que sale al imprimir. */}
       <div className="qr-poster">
         <div className="qr-poster-brand">
-          <span className="l1">PREOPERATIONAL </span><span className="l2">SYSTEM</span>
+          <Logo size={54} />
+          <span><span className="l1">PREOPERATIONAL </span><span className="l2">SYSTEM</span></span>
         </div>
         <div className="qr-poster-title">Inspección preoperacional</div>
         <div className="qr-poster-sub">{org?.name ?? "Control de flota"}</div>

@@ -6,6 +6,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { initials } from "@/lib/format";
+import Logo from "@/components/brand/Logo";
 import type { Role } from "@/lib/types";
 
 const ICONS: Record<string, string> = {
@@ -76,6 +77,7 @@ export default function AdminShell({
       <aside className={"admin-sidebar" + (open ? " open" : "")}>
         <div className="sb-head">
           <div className="brand">
+            <span className="brand-mark"><Logo size={38} tone="light" /></span>
             <div className="brand-text"><span className="l1">PREOPERATIONAL </span><span className="l2">SYSTEM</span></div>
           </div>
           <div style={{ fontSize: 10.5, color: "rgba(255,255,255,.5)", marginTop: 4, letterSpacing: ".6px" }}>

@@ -18,6 +18,7 @@ import {
   guardarBorrador, leerBorrador, borrarBorrador,
 } from "@/lib/offline";
 import OfflineBadge, { useEstadoConexion, usePendientes } from "@/components/OfflineBadge";
+import Logo from "@/components/brand/Logo";
 import type { AnswerPayload, ItemType, Severity } from "@/lib/types";
 
 type Step = "home" | "driver" | "vehicle" | "datos" | "inspect" | "summary" | "final";
@@ -436,11 +437,15 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
       {step === "home" && (
         <div className="d-body d-home2">
           <div className="home2-header">
-            <div>
-              <div><span className="home2-brandtext"><span className="l1">PREOPERATIONAL</span><span className="l2">SYSTEM</span></span></div>
-              <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 3 }}>Inspección de flotas · {round.label}</div>
+            <div className="home2-brand">
+              <span className="home2-logo"><Logo size={42} /></span>
+              <span className="home2-brandtext"><span className="l1">PREOPERATIONAL</span><span className="l2">SYSTEM</span></span>
             </div>
             <OfflineBadge enLinea={enLinea} pendientes={pendientes} />
+            {/* El nombre de la ronda lo escribe el usuario y puede ser largo, así
+                que ocupa su propia fila a ancho completo en vez de estrujarse
+                junto al distintivo de conexión. */}
+            <div className="home2-sub">Inspección de flotas · {round.label}</div>
           </div>
           {borradorPrevio && (
             <div className="draft-resume">

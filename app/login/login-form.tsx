@@ -7,6 +7,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Logo from "@/components/brand/Logo";
 import { createClient } from "@/lib/supabase/client";
 import { friendlyError } from "@/lib/errors";
 
@@ -62,6 +63,7 @@ export default function LoginForm() {
     <div className="admin-login-wrap">
       <form className="login-card" onSubmit={onSubmit}>
         <div className="brand">
+          <span className="brand-mark"><Logo size={44} /></span>
           <div className="brand-text"><span className="l1">PREOPERATIONAL </span><span className="l2">SYSTEM</span></div>
         </div>
         <h1 className="login-title">Iniciar sesión</h1>

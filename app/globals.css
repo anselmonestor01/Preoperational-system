@@ -94,16 +94,11 @@ button{font-family:inherit;}
 .mode-btn .ds{font-size:12.5px; color:var(--muted); margin-top:2px;}
 
 /* ---------- Brand lockup ---------- */
-.brand{display:flex; align-items:center; gap:0;}
-.brand .brand-text{ margin-left:0; }
-.brand-mark{
-  display:none !important;
-  width:0 !important; height:0 !important; margin:0 !important; padding:0 !important;
-  overflow:hidden !important; border:none !important;
-}
-.brand-mark::before{content:none !important;}
-.brand-mark img, .brand-mark svg{display:none !important;}
-.sb-head .brand-mark, .admin-sidebar .brand-mark{ display:none !important; }
+.brand{display:flex; align-items:center; gap:11px;}
+
+/* Marca del producto. El SVG lo pinta <Logo>; aquí sólo se reserva el espacio
+   y se alinea con el texto de la marca. */
+.brand-mark{ display:flex; align-items:center; flex-shrink:0; }
 
 .brand-text{line-height:1.05;}
 .brand-text .l1{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:15px; letter-spacing:.2px; color:var(--navy);}
@@ -1106,11 +1101,17 @@ img, svg, video, canvas { max-width: 100%; height: auto; }
 }
 /* Header */
 .home2-header{
-  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  display:grid; grid-template-columns:1fr auto; align-items:center;
+  column-gap:12px; row-gap:5px;
   margin-bottom:16px; flex-shrink:0;
 }
-.home2-brand{ display:flex; align-items:center; gap:0; }
-.home2-logo{ display:none !important; width:0 !important; height:0 !important; overflow:hidden !important; }
+/* Subtítulo con el nombre de la ronda: fila propia a ancho completo. */
+.home2-sub{
+  grid-column:1 / -1; min-width:0;
+  font-size:11px; color:var(--muted); line-height:1.35;
+}
+.home2-brand{ display:flex; align-items:center; gap:10px; }
+.home2-logo{ display:flex; align-items:center; flex-shrink:0; }
 .home2-brandtext{ display:flex; flex-direction:column; line-height:1.02; }
 .home2-brandtext .l1{
   font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:18px;
@@ -1802,26 +1803,6 @@ textarea:focus, .obs-textarea:focus{
 }
 
 
-/* Brand mark (cuadro M) eliminado en todas las pantallas */
-.brand-mark,
-.home2-logo,
-.ship-banner .brand-overlay .brand-mark,
-.sb-head .brand-mark,
-.admin-sidebar .brand-mark,
-.d-topbar .brand-mark {
-  display: none !important;
-  width: 0 !important;
-  height: 0 !important;
-  min-width: 0 !important;
-  min-height: 0 !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  border: none !important;
-  overflow: hidden !important;
-  visibility: hidden !important;
-  pointer-events: none !important;
-}
-.brand-mark::before { content: none !important; }
 
 
 /* =========================================================
@@ -2177,6 +2158,7 @@ input::placeholder, textarea::placeholder{ color:var(--muted); opacity:1; }
   box-shadow:0 10px 30px rgba(11,37,69,.06);
 }
 .qr-poster-brand{
+  display:flex; align-items:center; justify-content:center; gap:12px;
   font-size:15px; letter-spacing:1.4px; font-weight:800; color:var(--navy);
   margin-bottom:20px;
 }
