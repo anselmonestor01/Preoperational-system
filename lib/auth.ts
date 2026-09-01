@@ -27,3 +27,9 @@ export function roleHome(role: Role): string {
 export const ADMIN_ROLES: Role[] = [
   "admin", "supervisor", "maintenance", "auditor", "superadmin",
 ];
+
+// Roles con acceso al kiosco del patio. Deliberadamente NO incluye a los
+// administrativos: el kiosco es el dispositivo compartido donde los conductores
+// se identifican con su PIN, y esa cadena de responsabilidad se rompería si
+// alguien pudiera inspeccionar desde su propia sesión administrativa.
+export const KIOSK_ROLES: Role[] = ["operator", "driver"];

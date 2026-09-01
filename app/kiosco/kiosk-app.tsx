@@ -11,6 +11,7 @@ import { optionsFor, severityOf, previewResult } from "@/lib/checklist";
 import { fmtKm, initials } from "@/lib/format";
 import { compressImage, EVIDENCE_PRESET } from "@/lib/image";
 import { friendlyError } from "@/lib/errors";
+import { KM_MAX, soloDigitos, kmValido, kmRegresoValido, LIMITES } from "@/lib/validation";
 import {
   encolar, leerCola, desencolar, marcarIntento, esErrorDeRed,
   guardarBorrador, leerBorrador, borrarBorrador,
@@ -522,8 +523,15 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
             <h2 className="step-title">Datos de salida</h2>
             <p className="step-sub">{vehicle?.plate} · {driver?.name}</p>
             <div className="field-label">Kilometraje inicial</div>
-            <input className="input" inputMode="numeric" value={kmInicial}
-              onChange={(e) => setKmInicial(e.target.value.replace(/[^\d]/g, ""))} placeholder="Ej. 152300" />
+            <input className="input" inputMode="numeric" pattern="[0-9]*" value={kmInicial}
+              maxLength={7}
+              onChange={(e) => setKmInicial(soloDigitos(e.target.value).slice(0, 7))}
+              placeholder="Ej. 152300" />
+            {kmInicial !== "" && !kmValido(kmInicial) && (
+              <div className="cell-sub" style={{ color: "var(--orange)", marginTop: 6 }}>
+                Ingresa un kilometraje válido (0 a {KM_MAX.toLocaleString("es-CO")}).
+              </div>
+            )}
             <div className="field-label">Nivel de combustible</div>
             <div className="chk-opts">
               {optionsFor("nivel").map((o) => (
@@ -533,7 +541,7 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
             </div>
           </div>
           <div className="d-footer">
-            <button className="btn btn-primary btn-block" disabled={!kmInicial}
+            <button className="btn btn-primary btn-block" disabled={!kmValido(kmInicial)}
               onClick={() => { setCatIndex(0); setStep("inspect"); }}>Iniciar checklist</button>
           </div>
         </>
@@ -605,7 +613,9 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
               <div className="sum-row"><span className="k">Resultado previsto</span>
                 <span className={"result-pill " + (res === "bueno" ? "ok" : res === "regular" ? "warn" : "bad")}>{res}</span></div>
               <div className="field-label">Observaciones generales <span className="optional-tag">(opcional)</span></div>
-              <textarea className="input" value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Notas adicionales…" />
+              <textarea className="input" value={obs} maxLength={LIMITES.observaciones.max}
+                onChange={(e) => setObs(e.target.value.slice(0, LIMITES.observaciones.max))}
+                placeholder="Notas adicionales…" />
               <label style={{ display: "flex", gap: 10, alignItems: "flex-start", marginTop: 16, fontSize: 13.5 }}>
                 <input type="checkbox" checked={confirmChk} onChange={(e) => setConfirmChk(e.target.checked)} style={{ marginTop: 3 }} />
                 <span>Confirmo que la información registrada es veraz y corresponde al estado real del vehículo.</span>
@@ -736,8 +746,16 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
             <div className="sum-row"><span className="k">Vehículo</span><span className="v">{cierreOp.vehicle_plate}</span></div>
             <div className="sum-row"><span className="k">Km inicial</span><span className="v">{fmtKm(cierreOp.km_inicial)}</span></div>
             <div className="field-label">Kilometraje final</div>
-            <input className="input" inputMode="numeric" value={kmFinal}
-              onChange={(e) => setKmFinal(e.target.value.replace(/[^\d]/g, ""))} placeholder="Ej. 152480" />
+            <input className="input" inputMode="numeric" pattern="[0-9]*" value={kmFinal}
+              maxLength={7}
+              onChange={(e) => setKmFinal(soloDigitos(e.target.value).slice(0, 7))}
+              placeholder="Ej. 152480" />
+            {kmFinal !== "" && !kmRegresoValido(cierreOp?.km_inicial ?? null, Number(kmFinal)) && (
+              <div className="cell-sub" style={{ color: "var(--red)", marginTop: 6 }}>
+                El regreso no puede tener menos kilómetros que la salida
+                ({fmtKm(cierreOp?.km_inicial)}).
+              </div>
+            )}
             <div className="field-label">Nivel de combustible al regreso</div>
             <div className="chk-opts">
               {optionsFor("nivel").map((o) => (
@@ -745,7 +763,9 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
                   onClick={() => setFuelOut(o.value)}>{o.label}</button>
               ))}
             </div>
-            <button className="btn btn-primary btn-block" style={{ marginTop: 16 }} disabled={!kmFinal || cierreBusy} onClick={doReturn}>
+            <button className="btn btn-primary btn-block" style={{ marginTop: 16 }}
+              disabled={cierreBusy || !kmRegresoValido(cierreOp?.km_inicial ?? null, Number(kmFinal))}
+              onClick={doReturn}>
               {cierreBusy ? "Registrando…" : "Registrar regreso"}</button>
           </>)}
         </div>

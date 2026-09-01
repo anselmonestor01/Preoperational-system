@@ -10,6 +10,7 @@ import { initials } from "@/lib/format";
 import { friendlyError } from "@/lib/errors";
 import { compressImage, AVATAR_PRESET } from "@/lib/image";
 import { useDialog } from "@/components/ui/dialogs";
+import { LIMITES, limpiarTexto, soloTelefono, soloDigitos, textoValido, telefonoValido, licenciaValida } from "@/lib/validation";
 
 export interface DriverRow {
   id: string; full_name: string; license: string | null; whatsapp: string | null;
@@ -180,14 +181,35 @@ function DriverForm({ driver, onClose, onSaved }: { driver: DriverRow | null; on
         <div className="sheet-head"><div className="sheet-title">{driver ? "Editar conductor" : "Nuevo conductor"}</div>
           <button className="sheet-close" onClick={onClose}>✕</button></div>
         <div className="field-label">Nombre completo</div>
-        <input className="manage-input" style={{ width: "100%" }} value={f.full_name} onChange={(e) => setF({ ...f, full_name: e.target.value })} />
+        <input className="manage-input" style={{ width: "100%" }} value={f.full_name}
+          maxLength={LIMITES.nombreConductor.max}
+          onChange={(e) => setF({ ...f, full_name: limpiarTexto(e.target.value, LIMITES.nombreConductor.max) })} />
+        {f.full_name.length > 0 && !textoValido(f.full_name, LIMITES.nombreConductor) && (
+          <div className="cell-sub" style={{ color: "var(--orange)", marginTop: 4 }}>
+            Mínimo {LIMITES.nombreConductor.min} caracteres.
+          </div>
+        )}
         <div className="field-label">Licencia N.º</div>
-        <input className="manage-input" style={{ width: "100%" }} value={f.license} onChange={(e) => setF({ ...f, license: e.target.value })} />
+        <input className="manage-input" style={{ width: "100%" }} value={f.license}
+          inputMode="numeric" maxLength={LIMITES.licencia.max}
+          onChange={(e) => setF({ ...f, license: e.target.value.replace(/[^\w-]/g, "").slice(0, LIMITES.licencia.max) })} />
+        {f.license.length > 0 && !licenciaValida(f.license) && (
+          <div className="cell-sub" style={{ color: "var(--orange)", marginTop: 4 }}>
+            Entre {LIMITES.licencia.min} y {LIMITES.licencia.max} caracteres.
+          </div>
+        )}
         <div className="field-label">WhatsApp <span className="optional-tag">(ej. +57 300 1234567)</span></div>
-        <input className="manage-input" style={{ width: "100%" }} value={f.whatsapp} onChange={(e) => setF({ ...f, whatsapp: e.target.value })} />
+        <input className="manage-input" style={{ width: "100%" }} value={f.whatsapp}
+          inputMode="tel" maxLength={LIMITES.whatsapp.max}
+          onChange={(e) => setF({ ...f, whatsapp: soloTelefono(e.target.value).slice(0, LIMITES.whatsapp.max) })} />
+        {f.whatsapp.length > 0 && !telefonoValido(f.whatsapp) && (
+          <div className="cell-sub" style={{ color: "var(--orange)", marginTop: 4 }}>
+            Teléfono incompleto (mínimo {LIMITES.whatsapp.min} dígitos).
+          </div>
+        )}
         {!driver && (<>
           <div className="field-label">PIN de 4 dígitos <span className="optional-tag">(opcional; se genera si se deja vacío)</span></div>
-          <input className="manage-input" style={{ width: "100%" }} inputMode="numeric" maxLength={4} value={f.pin} onChange={(e) => setF({ ...f, pin: e.target.value.replace(/[^\d]/g, "") })} />
+          <input className="manage-input" style={{ width: "100%" }} inputMode="numeric" maxLength={4} value={f.pin} onChange={(e) => setF({ ...f, pin: soloDigitos(e.target.value) })} />
         </>)}
         {err && <div className="err-box" style={{ marginTop: 12 }}>{err}</div>}
         <button className="btn btn-primary btn-block" style={{ marginTop: 16 }} disabled={busy || !f.full_name} onClick={save}>{busy ? "Guardando…" : "Guardar"}</button>
@@ -216,7 +238,7 @@ function PinForm({ driver, onClose, onSaved }: { driver: DriverRow; onClose: () 
         <div className="sheet-head"><div><div className="sheet-title">Cambiar PIN</div><div className="cell-sub">{driver.full_name}</div></div>
           <button className="sheet-close" onClick={onClose}>✕</button></div>
         <div className="field-label">Nuevo PIN de 4 dígitos</div>
-        <input className="pin-input" inputMode="numeric" maxLength={4} value={pin} onChange={(e) => setPin(e.target.value.replace(/[^\d]/g, ""))} autoFocus />
+        <input className="pin-input" inputMode="numeric" maxLength={4} value={pin} onChange={(e) => setPin(soloDigitos(e.target.value))} autoFocus />
         {err && <div className="err-box" style={{ marginTop: 10 }}>{err}</div>}
         <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
           <button className="btn btn-primary btn-block" disabled={busy || pin.length < 4} onClick={() => save(pin)}>{busy ? "Guardando…" : "Guardar PIN"}</button>

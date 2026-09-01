@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/client";
 import { fmtDate } from "@/lib/format";
 import { friendlyError } from "@/lib/errors";
 import { useDialog } from "@/components/ui/dialogs";
+import { LIMITES, limpiarTexto, soloPlaca, soloDigitos, textoValido } from "@/lib/validation";
 
 export interface VehicleRow {
   id: string; plate: string; reference: string | null; model: string | null;
@@ -234,13 +235,28 @@ function VehicleForm({ vehicle, onClose, onSaved }: { vehicle: VehicleRow | null
         <div className="sheet-head"><div className="sheet-title">{vehicle ? `Datos de ${vehicle.plate}` : "Nuevo vehículo"}</div>
           <button className="sheet-close" onClick={onClose}>✕</button></div>
         <div className="field-label">Placa</div>
-        <input className="manage-input" style={{ width: "100%" }} value={f.plate} onChange={(e) => setF({ ...f, plate: e.target.value.toUpperCase() })} disabled={!!vehicle} placeholder="ABC-123" />
+        <input className="manage-input" style={{ width: "100%" }} value={f.plate}
+          maxLength={LIMITES.placa.max}
+          onChange={(e) => setF({ ...f, plate: soloPlaca(e.target.value).slice(0, LIMITES.placa.max) })}
+          disabled={!!vehicle} placeholder="ABC-123" />
+        {f.plate.length > 0 && !textoValido(f.plate, LIMITES.placa) && (
+          <div className="cell-sub" style={{ color: "var(--orange)", marginTop: 4 }}>
+            La placa debe tener entre {LIMITES.placa.min} y {LIMITES.placa.max} caracteres.
+          </div>
+        )}
         <div className="field-label">Referencia</div>
-        <input className="manage-input" style={{ width: "100%" }} value={f.reference} onChange={(e) => setF({ ...f, reference: e.target.value })} />
+        <input className="manage-input" style={{ width: "100%" }} value={f.reference}
+          maxLength={LIMITES.referencia.max}
+          onChange={(e) => setF({ ...f, reference: limpiarTexto(e.target.value, LIMITES.referencia.max) })} />
         <div className="field-label">Modelo</div>
-        <input className="manage-input" style={{ width: "100%" }} value={f.model} onChange={(e) => setF({ ...f, model: e.target.value })} placeholder="Ej. 2019" />
+        <input className="manage-input" style={{ width: "100%" }} value={f.model}
+          inputMode="numeric" maxLength={4}
+          onChange={(e) => setF({ ...f, model: soloDigitos(e.target.value).slice(0, 4) })}
+          placeholder="Ej. 2019" />
         <div className="field-label">Tarjeta de operación</div>
-        <input className="manage-input" style={{ width: "100%" }} value={f.operation_card} onChange={(e) => setF({ ...f, operation_card: e.target.value })} />
+        <input className="manage-input" style={{ width: "100%" }} value={f.operation_card}
+          maxLength={40}
+          onChange={(e) => setF({ ...f, operation_card: e.target.value.replace(/[^\w-]/g, "").slice(0, 40) })} />
         <div className="field-label">Vencimiento del seguro</div>
         <input type="date" className="manage-input" style={{ width: "100%" }} value={f.insurance_expires ?? ""} onChange={(e) => setF({ ...f, insurance_expires: e.target.value })} />
         <div className="field-label">Vencimiento emisión de gases</div>
