@@ -1,3 +1,5 @@
+// Reglas del checklist: opciones por tipo de ítem, severidad de cada respuesta y
+// previsualización del resultado. El veredicto definitivo lo recalcula la BD.
 import type { ItemType, Severity } from "./types";
 
 // Opciones por tipo de ítem (espejo EXACTO de app.severity_of en la BD).

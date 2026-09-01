@@ -3,14 +3,14 @@
 @tailwind utilities;
 
 /* =========================================================
-   SISTEMA PREOPERACIONAL — SISTEMA DE DISEÑO
+   PREOPERATIONAL SYSTEM — SISTEMA DE DISEÑO
    Portado fielmente desde el prototipo original (bloque <style> completo).
    No modificar los tokens ni el lenguaje visual sin una razón de producto.
    ========================================================= */
 :root{ --font-display:'Space Grotesk'; --font-sans:'Inter'; }
 
 /* =========================================================
-   SISTEMA PREOPERACIONAL — DESIGN TOKENS
+   PREOPERATIONAL SYSTEM — DESIGN TOKENS
    Color: navy #0B2545 (texto/estructura), azul corporativo #1568C0 (acción),
    celeste #EAF3FC (superficie suave), verde #1E8E5A, naranja #C97A1A, rojo #C6423C
    Type: Space Grotesk (display/números), Inter (UI/cuerpo)
@@ -1881,4 +1881,55 @@ a{color:inherit;text-decoration:none;}
 .home2-cta{ padding:28px 26px 26px; }
 .home2-cta-title{ font-size:28px; }
 .home2-meta > span{ padding:16px 8px; }
-.home2-status{ white-space:nowrap; }
+/* El badge es un contenedor flex: sin esto el punto (un <span>) queda inline,
+   ignora width/height y se renderiza como una franja verde estirada. */
+.home2-status{
+  display:inline-flex; align-items:center; gap:7px;
+  white-space:nowrap; font-size:12.5px; font-weight:600; color:var(--navy);
+}
+.home2-dot{ flex:0 0 8px; }
+
+/* =========================================================
+   ESTADO VACÍO — con identidad, no texto gris suelto
+   Una sola regla mejora las ~15 pantallas que usan .empty-state
+   (dashboard, vehículos, conductores, novedades, rondas, reportes).
+   ========================================================= */
+.empty-state{
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:10px; text-align:center;
+  padding:34px 22px !important;
+  color:var(--muted); font-size:13.5px; font-weight:500; line-height:1.5;
+  background:linear-gradient(180deg, rgba(234,241,254,.35) 0%, rgba(255,255,255,0) 70%);
+  border:1px dashed var(--line);
+  border-radius:14px;
+}
+.empty-state::before{
+  content:"";
+  width:42px; height:42px; border-radius:13px; flex-shrink:0;
+  background:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231E63E9' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'><path d='M3 13h4l2 3h6l2-3h4'/><path d='M5 5h14l2 8v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4z'/></svg>") center / 20px 20px no-repeat,
+    linear-gradient(145deg,#EAF1FE,#F5F8FF);
+  border:1px solid rgba(30,99,233,.12);
+}
+
+/* Acción secundaria del home ("Registrar regreso"): tarjeta con el mismo
+   lenguaje visual del resto del home, no un botón blanco genérico. */
+.home2-secondary{
+  display:flex; align-items:center; justify-content:center; gap:9px;
+  width:100%; padding:15px 18px; border-radius:14px; cursor:pointer;
+  background:#fff; border:1px solid rgba(11,37,69,.06);
+  box-shadow:0 6px 18px rgba(11,37,69,.05);
+  font-family:inherit; font-size:14px; font-weight:700; color:var(--navy);
+  transition:transform .14s, box-shadow .14s, border-color .14s;
+}
+.home2-secondary:hover{
+  transform:translateY(-1px); border-color:rgba(30,99,233,.28);
+  box-shadow:0 10px 24px rgba(11,37,69,.09);
+}
+.home2-secondary .badge-count{
+  display:inline-flex; align-items:center; justify-content:center;
+  min-width:22px; height:22px; padding:0 7px; border-radius:100px;
+  background:var(--orange-soft); color:var(--orange);
+  font-size:12px; font-weight:800;
+}
+.home2-secondary svg{ width:17px; height:17px; color:var(--acc); flex-shrink:0; }

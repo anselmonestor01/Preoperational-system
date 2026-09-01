@@ -1,8 +1,8 @@
 {
-  "name": "sistema-preoperacional",
+  "name": "preoperational-system",
   "version": "1.0.0",
   "private": true,
-  "description": "Sistema Preoperacional — Gestión de Flotas (Next.js + Supabase)",
+  "description": "Preoperational System — Inspección preoperacional de flotas (Next.js + Supabase)",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

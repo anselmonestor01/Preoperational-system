@@ -1,5 +1,7 @@
 "use client";
 
+// Estructura del panel: barra lateral, cabecera y navegación responsive.
+
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -65,7 +67,7 @@ export default function AdminShell({
       <aside className={"admin-sidebar" + (open ? " open" : "")}>
         <div className="sb-head">
           <div className="brand">
-            <div className="brand-text"><span className="l1">PRE</span><span className="l2">OPERACIONAL</span></div>
+            <div className="brand-text"><span className="l1">PREOPERATIONAL </span><span className="l2">SYSTEM</span></div>
           </div>
           <div style={{ fontSize: 10.5, color: "rgba(255,255,255,.5)", marginTop: 4, letterSpacing: ".6px" }}>
             GESTIÓN DE FLOTAS
@@ -89,7 +91,7 @@ export default function AdminShell({
           <rect x="66" y="40" width="7" height="6" fill="#fff" opacity=".5" />
         </svg>
         <div className="sb-foot">
-          <div className="sb-avatar">{initials(name || "MM")}</div>
+          <div className="sb-avatar">{initials(name || "Usuario")}</div>
           <div><div className="nm">{name || "Usuario"}</div><div className="rl" style={{ textTransform: "capitalize" }}>{role}</div></div>
           <form action="/auth/signout" method="post" style={{ marginLeft: "auto" }}>
             <button type="submit" className="sb-exit" title="Cerrar sesión">

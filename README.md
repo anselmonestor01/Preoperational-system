@@ -1,4 +1,4 @@
-# Sistema Preoperacional — Gestión de Flotas
+# Preoperational System — Gestión de Flotas
 
 Sistema empresarial **multi-tenant** para gestionar inspecciones preoperacionales
 de vehículos antes de iniciar operaciones. Convierte el prototipo HTML original en
@@ -101,12 +101,12 @@ Scripts: `npm run build`, `npm run start`, `npm run typecheck`, `npm run lint`.
 | Admin     | `admin@navierapacifico.com`   | `Preoperacional2026!` | `/admin` |
 | Operador  | `operador@navierapacifico.com`| `Kiosco2026!`         | `/kiosco`|
 
-**PIN demo de conductores:** Juan Pérez `1234`, Carlos Rodríguez `2345`,
-Ernesto Gómez `3456`, Luis Martínez `4567`, Jorge Ramírez `5678`,
-Andrés Morales `6789`.
+**Conductores y vehículos:** se dan de alta desde el panel de administración
+(*Conductores* y *Vehículos*). Cada conductor define su propio PIN de 4 dígitos,
+que se guarda con bcrypt y sólo puede revelarlo un administrador (acción auditada).
 
-> Estos datos son **DEMO/SEED**, no datos reales. Cambie las contraseñas y los
-> PIN antes de operar de verdad.
+> Las credenciales de acceso son **DEMO/SEED**, no datos reales. Cámbielas antes
+> de operar de verdad.
 
 ---
 
@@ -116,7 +116,7 @@ Andrés Morales `6789`.
 app/                    Rutas Next.js (login, kiosco, admin/*, auth)
 components/admin/       Shell del panel (sidebar, topbar)
 lib/                    Clientes Supabase, tipos, helpers (checklist, formato)
-supabase/migrations/    Migraciones SQL versionadas (0001..0006)
+supabase/migrations/    Migraciones SQL versionadas (0001..0010)
 supabase/seed.sql       Datos demo (cliente ficticio de prueba)
 docs/                   Arquitectura, seguridad, QA
 ```

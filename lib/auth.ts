@@ -1,3 +1,4 @@
+// Helpers de sesión y autorización por rol para Server Components.
 import { createClient } from "@/lib/supabase/server";
 import type { Profile, Role } from "@/lib/types";
 

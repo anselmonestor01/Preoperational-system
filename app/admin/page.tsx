@@ -1,3 +1,5 @@
+// Dashboard: KPIs del día, curva horaria de inspecciones, estado de la flota y
+// novedades abiertas. Todo se lee con RLS (sólo la organización del usuario).
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { fmtTime } from "@/lib/format";

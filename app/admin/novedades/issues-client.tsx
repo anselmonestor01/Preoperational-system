@@ -1,5 +1,7 @@
 "use client";
 
+// Seguimiento de novedades: cambio de estado y visor de evidencia fotográfica.
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";

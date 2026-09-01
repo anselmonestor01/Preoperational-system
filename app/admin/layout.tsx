@@ -1,3 +1,4 @@
+// Layout del panel de administración: exige sesión con rol administrativo.
 import { redirect } from "next/navigation";
 import { getProfile, ADMIN_ROLES } from "@/lib/auth";
 import AdminShell from "@/components/admin/AdminShell";

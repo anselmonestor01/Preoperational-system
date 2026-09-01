@@ -1,9 +1,9 @@
-# Despliegue — Sistema Preoperacional
+# Despliegue — Preoperational System
 
 ## Estado actual
 
 - **Base de datos (Supabase):** ✅ desplegada y verificada en el proyecto
-  `vkduxheifqmomtazolku` (migraciones 0001–0006 aplicadas + seed).
+  `vkduxheifqmomtazolku` (migraciones 0001–0010 aplicadas + seed).
 - **Código (GitHub):** ✅ en `anselmonestor01/Preoperational-system`, rama
   `claude/mundo-maritimo-enterprise-6py8ty`.
 - **Vercel:** requiere **un paso único de autorización** (conectar GitHub), que
@@ -37,7 +37,7 @@ concedida, cada `git push` despliega solo.
 
 ## Opción B — Vincular un proyecto ya creado
 
-Ya existe un proyecto `mundo-maritimo-app` en el equipo de Vercel. Puedes, en su
+Si ya existe un proyecto en el equipo de Vercel, puedes, en su
 **Settings → Git**, conectar el repositorio `anselmonestor01/Preoperational-system`
 y fijar la Production Branch, luego **Redeploy**.
 
@@ -54,5 +54,5 @@ Abre la URL y comprueba:
 
 ## Migraciones en un proyecto Supabase nuevo
 
-Aplica en orden `supabase/migrations/0001…0006.sql` y luego `supabase/seed.sql`
+Aplica en orden `supabase/migrations/0001…0010.sql` y luego `supabase/seed.sql`
 (CLI de Supabase o el editor SQL del dashboard).

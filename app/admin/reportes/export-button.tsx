@@ -1,5 +1,7 @@
 "use client";
 
+// Exportación del reporte filtrado a CSV (con BOM, para abrir bien en Excel).
+
 export default function ExportButton({ rows }: { rows: Record<string, unknown>[] }) {
   function exportCsv() {
     if (!rows.length) return;

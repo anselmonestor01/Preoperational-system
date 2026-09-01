@@ -1,5 +1,8 @@
 "use client";
 
+// Gestión de conductores: alta con PIN, foto de perfil y baja. El PIN se guarda
+// cifrado y sólo un administrador puede revelarlo mediante un RPC auditado.
+
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";

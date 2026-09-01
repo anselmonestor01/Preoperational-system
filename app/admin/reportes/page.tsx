@@ -1,3 +1,5 @@
+// Reportes: filtra por ronda, fecha, vehículo, conductor y resultado; resume
+// indicadores y reúne la evidencia fotográfica del periodo.
 import { createClient } from "@/lib/supabase/server";
 import { fmtDateTime, fmtKm } from "@/lib/format";
 import EvidenceGallery from "@/components/EvidenceGallery";

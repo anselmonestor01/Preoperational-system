@@ -94,4 +94,4 @@ from (values
   ('Luis Martínez','4567'),('Jorge Ramírez','5678'),('Andrés Morales','6789')
 ) as v(name,pin)
 where d.full_name = v.name and d.pin_encrypted is null
-  and d.organization_id = (select id from public.organizations where slug='mundo-maritimo');
+  and d.organization_id = (select id from public.organizations where slug='naviera-pacifico');

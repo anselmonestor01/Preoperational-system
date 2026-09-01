@@ -1,3 +1,4 @@
+// Raíz `/`: redirige a cada usuario a su panel según su rol.
 import { redirect } from "next/navigation";
 import { getProfile, roleHome } from "@/lib/auth";
 

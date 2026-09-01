@@ -1,3 +1,4 @@
+// Route handler de cierre de sesión (POST): limpia la cookie y vuelve al login.
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 

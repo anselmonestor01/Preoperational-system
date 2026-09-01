@@ -1,5 +1,8 @@
 "use client";
 
+// Detalle de una inspección y acciones de supervisión (anular, liberar,
+// sobrescribir veredicto). Cada acción pasa por un RPC que revalida permisos.
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";

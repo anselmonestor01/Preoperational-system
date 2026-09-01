@@ -1,5 +1,5 @@
 -- =============================================================================
--- SISTEMA PREOPERACIONAL — SEED / DEMO DATA (idempotente)
+-- PREOPERATIONAL SYSTEM — SEED / DEMO DATA (idempotente)
 -- -----------------------------------------------------------------------------
 -- ⚠️  DATOS DE DEMOSTRACIÓN. El nombre de la organización es un CLIENTE ficticio
 -- (no el nombre del producto) para que la demo se vea como un tenant real.
@@ -13,13 +13,13 @@ do $$
 declare
   v_org uuid; v_admin uuid; v_operator uuid; v_struct jsonb;
 begin
-  if exists (select 1 from public.organizations where slug='mundo-maritimo') then
+  if exists (select 1 from public.organizations where slug='naviera-pacifico') then
     raise notice 'Seed demo ya aplicado; se omite.';
     return;
   end if;
 
   insert into public.organizations(name, slug, timezone)
-    values ('Naviera del Pacífico S.A.','mundo-maritimo','America/Bogota') returning id into v_org;
+    values ('Naviera del Pacífico S.A.','naviera-pacifico','America/Bogota') returning id into v_org;
 
   -- ---- Usuarios de autenticación (Supabase Auth) ----------------------------
   v_admin := gen_random_uuid();

@@ -1,3 +1,4 @@
+// Conductores: carga el listado y firma las URLs de sus fotos (bucket privado).
 import { createClient } from "@/lib/supabase/server";
 import DriversClient, { type DriverRow } from "./drivers-client";
 

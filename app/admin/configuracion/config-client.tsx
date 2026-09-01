@@ -1,5 +1,8 @@
 "use client";
 
+// Editor del checklist y publicación de una versión nueva. Las inspecciones ya
+// enviadas conservan su snapshot: editar aquí nunca reescribe el histórico.
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";

@@ -1,5 +1,8 @@
 "use client";
 
+// Gestión de vehículos: alta, bloqueo/desbloqueo, liberación de novedades y
+// baja (archivar o eliminar). Las transiciones críticas van por RPC.
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";

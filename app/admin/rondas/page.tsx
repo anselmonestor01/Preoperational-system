@@ -1,3 +1,4 @@
+// Rondas: ronda vigente, cobertura de la flota y vehículos aún sin inspeccionar.
 import { createClient } from "@/lib/supabase/server";
 import { fmtDateTime, fmtTime } from "@/lib/format";
 import NewRoundButton from "./new-round-button";

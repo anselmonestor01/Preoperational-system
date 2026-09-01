@@ -1,4 +1,4 @@
-# Arquitectura — Sistema Preoperacional
+# Arquitectura — Preoperational System
 
 ## Capas
 

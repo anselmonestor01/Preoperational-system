@@ -1,5 +1,9 @@
 "use client";
 
+// Formulario de acceso. Autentica contra Supabase Auth y enruta por rol
+// (operador/conductor → kiosco, resto → administración). Los errores de Auth se
+// traducen a mensajes accionables en vez de un genérico.
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -56,10 +60,10 @@ export default function LoginForm() {
     <div className="admin-login-wrap">
       <form className="login-card" onSubmit={onSubmit}>
         <div className="brand">
-          <div className="brand-text"><span className="l1">PRE</span><span className="l2">OPERACIONAL</span></div>
+          <div className="brand-text"><span className="l1">PREOPERATIONAL </span><span className="l2">SYSTEM</span></div>
         </div>
         <h1 className="login-title">Iniciar sesión</h1>
-        <p className="login-sub">Sistema Preoperacional — acceso corporativo.</p>
+        <p className="login-sub">Inspección preoperacional de flotas — acceso corporativo.</p>
 
         <div className="form-group">
           <label htmlFor="email">Correo electrónico</label>

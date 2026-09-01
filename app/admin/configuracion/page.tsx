@@ -1,3 +1,4 @@
+// Configuración: checklist activo y parámetros de operación de la organización.
 import { createClient } from "@/lib/supabase/server";
 import { fmtDateTime } from "@/lib/format";
 import ConfigClient from "./config-client";

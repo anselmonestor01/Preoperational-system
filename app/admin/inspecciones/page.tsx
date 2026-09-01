@@ -1,3 +1,4 @@
+// Historial de inspecciones con su resultado y evidencia asociada.
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { fmtDateTime, fmtKm } from "@/lib/format";

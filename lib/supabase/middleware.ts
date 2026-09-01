@@ -1,3 +1,4 @@
+// Middleware de sesión: refresca el token y protege las rutas privadas.
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config";

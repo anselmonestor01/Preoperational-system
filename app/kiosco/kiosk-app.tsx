@@ -1,5 +1,10 @@
 "use client";
 
+// App del kiosco del conductor (mobile-first): home, verificación por PIN,
+// selección de vehículo, checklist por categorías, resumen y envío. El veredicto
+// de autorización lo calcula SIEMPRE el servidor (RPC `submit_inspection`);
+// aquí sólo se previsualiza. Incluye autoguardado de borrador e idempotencia.
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { optionsFor, severityOf, previewResult } from "@/lib/checklist";
@@ -232,8 +237,8 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
         <div className="d-body d-home2">
           <div className="home2-header">
             <div>
-              <div><span className="home2-brandtext"><span className="l1">PRE</span><span className="l2">OPERACIONAL</span></span></div>
-              <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 3 }}>Sistema Preoperacional · {round.label}</div>
+              <div><span className="home2-brandtext"><span className="l1">PREOPERATIONAL</span><span className="l2">SYSTEM</span></span></div>
+              <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 3 }}>Inspección de flotas · {round.label}</div>
             </div>
             <div className="home2-status"><span className="home2-dot" />En línea</div>
           </div>
@@ -255,8 +260,13 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
             <span><strong>Digital</strong>Registro</span>
           </div>
           {openOps.length > 0 && (
-            <button className="btn btn-ghost btn-block" style={{ marginTop: 14 }} onClick={() => setCierreOp(openOps[0])}>
-              Registrar regreso ({openOps.length} operación{openOps.length > 1 ? "es" : ""} abierta{openOps.length > 1 ? "s" : ""})
+            <button className="home2-secondary" onClick={() => setCierreOp(openOps[0])}>
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M9 14 4 9l5-5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M4 9h11a5 5 0 0 1 0 10h-3" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Registrar regreso
+              <span className="badge-count">{openOps.length}</span>
             </button>
           )}
           <form action="/auth/signout" method="post">
@@ -553,7 +563,7 @@ function TopBar({ onBack }: { onBack: () => void }) {
       <button className="d-back" onClick={onBack}>
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
       </button>
-      <span className="home2-brandtext"><span className="l1">PRE</span><span className="l2">OPERACIONAL</span></span>
+      <span className="home2-brandtext"><span className="l1">PREOPERATIONAL</span><span className="l2">SYSTEM</span></span>
       <form action="/auth/signout" method="post"><button type="submit" className="d-exit">Salir</button></form>
     </div>
   );

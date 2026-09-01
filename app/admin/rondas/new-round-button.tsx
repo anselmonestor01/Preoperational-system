@@ -1,5 +1,7 @@
 "use client";
 
+// Diálogo para abrir una ronda nueva (RPC `start_round`, que impide dos abiertas).
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";

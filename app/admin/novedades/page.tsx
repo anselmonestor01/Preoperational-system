@@ -1,3 +1,4 @@
+// Novedades: agrupa hallazgos por vehículo y firma las URLs de la evidencia.
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import IssuesClient, { type IssueRow } from "./issues-client";

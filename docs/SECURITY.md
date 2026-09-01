@@ -1,4 +1,4 @@
-# Seguridad — Sistema Preoperacional
+# Seguridad — Preoperational System
 
 La seguridad vive en **backend + base de datos + RLS**, nunca en ocultar botones.
 

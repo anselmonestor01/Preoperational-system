@@ -1,3 +1,5 @@
+// Vehículos: lee el estado desde `vehicle_status_view`, la ÚNICA fuente de
+// verdad de disponibilidad (compartida con el kiosco).
 import { createClient } from "@/lib/supabase/server";
 import VehiclesClient, { type VehicleRow } from "./vehicles-client";
 

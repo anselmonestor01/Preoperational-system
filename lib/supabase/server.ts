@@ -1,3 +1,4 @@
+// Cliente de Supabase para Server Components y route handlers (sesión en cookies).
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config";

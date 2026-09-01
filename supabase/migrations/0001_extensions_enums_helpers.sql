@@ -1,5 +1,5 @@
 -- =============================================================================
--- MUNDO MARÍTIMO — Sistema Preoperacional
+-- PREOPERATIONAL SYSTEM — Inspección preoperacional de flotas
 -- Migración 0001: Extensiones, esquema app, enums y funciones auxiliares (RLS)
 -- -----------------------------------------------------------------------------
 -- Fundamento del modelo multi-tenant y de seguridad. Todas las políticas RLS

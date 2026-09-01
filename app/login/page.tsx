@@ -1,3 +1,4 @@
+// Ruta `/login`: si ya hay sesión activa redirige; si no, muestra el formulario.
 import { redirect } from "next/navigation";
 import { getProfile, roleHome } from "@/lib/auth";
 import LoginForm from "./login-form";
