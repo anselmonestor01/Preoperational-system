@@ -10,6 +10,7 @@ import { initials } from "@/lib/format";
 import { friendlyError } from "@/lib/errors";
 import { compressImage, AVATAR_PRESET } from "@/lib/image";
 import { useDialog } from "@/components/ui/dialogs";
+import PhotoCropper from "@/components/PhotoCropper";
 import { LIMITES, limpiarTexto, soloTelefono, soloDigitos, textoValido, telefonoValido, licenciaValida } from "@/lib/validation";
 
 export interface DriverRow {
@@ -29,6 +30,8 @@ export default function DriversClient({ rows, photoMap, orgId }: { rows: DriverR
   const [revealed, setRevealed] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  // Foto elegida pendiente de encuadrar. Se sube sólo tras confirmar el recorte.
+  const [recorte, setRecorte] = useState<{ driver: DriverRow; archivo: File } | null>(null);
 
   const show = (m: string) => { setToast(m); setTimeout(() => setToast(""), 2800); };
   const list = rows.filter((d) => d.full_name.toLowerCase().includes(q.toLowerCase()));
@@ -139,7 +142,7 @@ export default function DriversClient({ rows, photoMap, orgId }: { rows: DriverR
                   <button className="btn btn-ghost btn-sm" onClick={() => setPinFor(d)}>Cambiar PIN</button>
                   <button className="btn btn-ghost btn-sm" disabled={busy === d.id} onClick={() => fileRefs.current[d.id]?.click()}>Foto</button>
                   <input ref={(el) => { fileRefs.current[d.id] = el; }} type="file" accept="image/*" style={{ display: "none" }}
-                    onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadPhoto(d, f); e.target.value = ""; }} />
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) setRecorte({ driver: d, archivo: f }); e.target.value = ""; }} />
                   <button className="btn btn-ghost btn-sm" disabled={busy === d.id} onClick={() => toggleActive(d)}>{d.active ? "Marcar inactivo" : "Marcar activo"}</button>
                 </div>
               </div>
@@ -151,6 +154,18 @@ export default function DriversClient({ rows, photoMap, orgId }: { rows: DriverR
 
       {(edit || creating) && <DriverForm driver={edit} onClose={() => { setEdit(null); setCreating(false); }} onSaved={(m) => { show(m); router.refresh(); }} />}
       {pinFor && <PinForm driver={pinFor} onClose={() => setPinFor(null)} onSaved={show} />}
+      {recorte && (
+        <PhotoCropper
+          archivo={recorte.archivo}
+          onCancelar={() => setRecorte(null)}
+          onListo={(recortada) => {
+            const d = recorte.driver;
+            setRecorte(null);
+            uploadPhoto(d, recortada);
+          }}
+        />
+      )}
+
       <div className={"toast" + (toast ? " show" : "")}>{toast}</div>
     </>
   );
