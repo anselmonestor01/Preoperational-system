@@ -21,6 +21,7 @@
 import { headers } from "next/headers";
 import QRCode from "qrcode";
 import { createClient } from "@/lib/supabase/server";
+import { getProfile } from "@/lib/auth";
 import PrintButton from "./print-button";
 import Logo from "@/components/brand/Logo";
 
@@ -38,8 +39,11 @@ function baseUrl(): string {
 
 export default async function QrPage() {
   const supabase = createClient();
+  // La empresa activa, no "la primera": con varias, `limit(1)` traía otra.
+  const perfil = await getProfile();
   const { data: org } = await supabase
-    .from("organizations").select("name").limit(1).maybeSingle();
+    .from("organizations").select("name")
+    .eq("id", perfil?.organization_id ?? "").maybeSingle();
 
   const url = `${baseUrl()}/kiosco`;
 

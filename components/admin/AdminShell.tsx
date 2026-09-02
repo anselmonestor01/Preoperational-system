@@ -7,6 +7,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { initials } from "@/lib/format";
 import Logo from "@/components/brand/Logo";
+import OrgSwitcher from "@/components/admin/OrgSwitcher";
 import type { Role } from "@/lib/types";
 
 const ICONS: Record<string, string> = {
@@ -16,6 +17,8 @@ const ICONS: Record<string, string> = {
   conductores: '<circle cx="12" cy="8" r="3.4"/><path d="M5 20c1.2-3.6 4-5.4 7-5.4s5.8 1.8 7 5.4" stroke-linecap="round"/>',
   novedades: '<path d="M12 9v4M12 17h.01M10.3 3.9 2.5 17a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" stroke-linecap="round" stroke-linejoin="round"/>',
   avisos: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke-linecap="round" stroke-linejoin="round"/>',
+  empresas: '<path d="M3 21h18M5 21V7l7-4 7 4v14M9 9h.01M9 13h.01M9 17h.01M15 9h.01M15 13h.01M15 17h.01" stroke-linecap="round" stroke-linejoin="round"/>',
+  plataforma: '<path d="M3 3v18h18" stroke-linecap="round"/><path d="M7 15l3-4 3 3 5-7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="18" cy="7" r="1.6"/>',
   qr: '<rect x="3" y="3" width="7" height="7" rx="1.4"/><rect x="14" y="3" width="7" height="7" rx="1.4"/><rect x="3" y="14" width="7" height="7" rx="1.4"/><path d="M14 14h3v3h-3zM20 14v3M14 20h3M20 20h1" stroke-linecap="round"/>',
   rondas: '<path d="M21 12a9 9 0 1 1-3-6.7M21 4v4h-4" stroke-linecap="round" stroke-linejoin="round"/>',
   reportes: '<path d="M4 20V10M10 20V4M16 20v-7M4 20h16" stroke-linecap="round" stroke-linejoin="round"/>',
@@ -23,7 +26,7 @@ const ICONS: Record<string, string> = {
   configuracion: '<circle cx="12" cy="12" r="3"/><path d="M19.4 13a7.9 7.9 0 0 0 0-2l2.1-1.6-2-3.4-2.5 1a8 8 0 0 0-1.7-1L14.9 3H9.1l-.4 2.9a8 8 0 0 0-1.7 1l-2.5-1-2 3.4L4.6 11a7.9 7.9 0 0 0 0 2l-2.1 1.6 2 3.4 2.5-1a8 8 0 0 0 1.7 1l.4 2.9h5.8l.4-2.9a8 8 0 0 0 1.7-1l2.5 1 2-3.4z" stroke-linejoin="round"/>',
 };
 
-const NAV = [
+const NAV_BASE = [
   { href: "/admin", key: "dashboard", label: "Dashboard" },
   { href: "/admin/inspecciones", key: "inspecciones", label: "Inspecciones" },
   { href: "/admin/vehiculos", key: "vehiculos", label: "Vehículos" },
@@ -38,6 +41,12 @@ const NAV = [
   // "Auditoría" se retiró del menú por decisión de producto (los audit_logs siguen activos en backend).
 ];
 
+// Sólo para el dueño del sistema: crear empresas y vigilar la plataforma.
+const NAV_SUPERADMIN = [
+  { href: "/admin/empresas", key: "empresas", label: "Empresas" },
+  { href: "/admin/plataforma", key: "plataforma", label: "Plataforma" },
+];
+
 const TITLES: Record<string, [string, string]> = {
   "/admin": ["Dashboard", "Panorama operativo de la flota"],
   "/admin/inspecciones": ["Inspecciones", "Historial completo de inspecciones preoperacionales"],
@@ -50,6 +59,8 @@ const TITLES: Record<string, [string, string]> = {
   "/admin/reportes": ["Reportes", "Análisis, evidencia y exportación de la operación"],
   "/admin/usuarios": ["Usuarios", "Quién entra al sistema y con qué permisos"],
   "/admin/configuracion": ["Configuración", "Checklist, operación y sistema"],
+  "/admin/empresas": ["Empresas", "Alta y acceso a las empresas de la plataforma"],
+  "/admin/plataforma": ["Plataforma", "Cómo va cada empresa, sin ver sus datos"],
 };
 
 function navIcon(key: string) {
@@ -60,8 +71,15 @@ function navIcon(key: string) {
 }
 
 export default function AdminShell({
-  children, name, role,
-}: { children: React.ReactNode; name: string; role: Role }) {
+  children, name, role, orgName = null, isSuperadmin = false,
+}: {
+  children: React.ReactNode;
+  name: string;
+  role: Role;
+  orgName?: string | null;
+  isSuperadmin?: boolean;
+}) {
+  const NAV = isSuperadmin ? [...NAV_BASE, ...NAV_SUPERADMIN] : NAV_BASE;
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [title, sub] =
@@ -83,6 +101,8 @@ export default function AdminShell({
           <div style={{ fontSize: 10.5, color: "rgba(255,255,255,.5)", marginTop: 4, letterSpacing: ".6px" }}>
             GESTIÓN DE FLOTAS
           </div>
+          {/* Sólo aparece si el usuario pertenece a más de una empresa. */}
+          <OrgSwitcher actual={orgName} />
         </div>
         <nav className="sb-nav">
           {NAV.map((n) => {

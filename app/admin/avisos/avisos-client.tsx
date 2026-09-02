@@ -83,8 +83,8 @@ const PLANTILLAS: Array<{ nombre: string; texto: (nombre: string, placa: string)
 ];
 
 export default function AvisosClient({
-  rows, conductores,
-}: { rows: AvisoRow[]; conductores: ConductorRow[] }) {
+  rows, conductores, errorLectura = null,
+}: { rows: AvisoRow[]; conductores: ConductorRow[]; errorLectura?: string | null }) {
   const supabase = createClient();
   const router = useRouter();
   const dialog = useDialog();
@@ -204,6 +204,16 @@ export default function AvisosClient({
 
   return (
     <>
+      {/* Un fallo de lectura no puede disfrazarse de "no hay nada". */}
+      {errorLectura && (
+        <div className="panel">
+          <div className="dialog-warning" style={{ marginBottom: 0 }}>
+            <strong>No se pudieron cargar los avisos.</strong> Lo que se ve abajo puede
+            estar incompleto. Detalle técnico: {errorLectura}
+          </div>
+        </div>
+      )}
+
       {/* ---------------------------------------------------------------- */}
       {/* Redactar un mensaje                                              */}
       {/* ---------------------------------------------------------------- */}

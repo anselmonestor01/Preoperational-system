@@ -65,6 +65,14 @@ audit_logs`
 - **Un perfil, un dispositivo:** `driver_claims` reserva el perfil del conductor
   para el equipo donde escribió su PIN, de modo que dos teléfonos no pueden
   inspeccionar con la misma identidad. La reserva caduca sola a los 45 minutos.
+- **Varias empresas por usuario:** `organization_members` dice a qué empresas
+  entra cada persona y con qué rol en cada una. `app.current_org()` devuelve la
+  empresa activa, validada contra esa tabla, así que las 25 políticas RLS y los
+  33 RPC pasaron a ser multiempresa sin cambiar ni una línea de ellos. El kiosco
+  no lleva selector a propósito: la tableta de una portería es de esa empresa.
+- **Consola de plataforma:** `platform_overview()` devuelve, sólo al
+  superadministrador, conteos y fechas de todas las empresas — nunca placas,
+  nombres de conductor ni fotos. Contar sí; leer no.
 - **Un conductor, una salida a la vez:** mientras no registre el regreso, no
   puede iniciar otra inspección. Lo impone un disparador sobre `inspections`
   (`app.una_operacion_por_conductor`), así que vale para cualquier vía de
@@ -130,7 +138,7 @@ que se guarda con bcrypt y sólo puede revelarlo un administrador (acción audit
 app/                    Rutas Next.js (login, kiosco, admin/*, auth)
 components/admin/       Shell del panel (sidebar, topbar)
 lib/                    Clientes Supabase, tipos, helpers (checklist, formato)
-supabase/migrations/    Migraciones SQL versionadas (0001..0019)
+supabase/migrations/    Migraciones SQL versionadas (0001..0023)
 supabase/seed.sql       Datos demo (cliente ficticio de prueba)
 supabase/tests/         Pruebas de las reglas de negocio en PostgreSQL
 tests/                  Pruebas unitarias del cliente (Vitest)
@@ -140,8 +148,9 @@ docs/                   Arquitectura, seguridad, QA
 ### Pruebas
 
 ```bash
-npm test                             # 67 pruebas unitarias del cliente
-psql "$DATABASE_URL" -f supabase/tests/rules.test.sql   # 18 reglas de negocio
+npm test                                                    # 71 pruebas del cliente
+psql "$DATABASE_URL" -f supabase/tests/rules.test.sql        # 18 reglas de negocio
+psql "$DATABASE_URL" -f supabase/tests/aislamiento.test.sql  # 14 de aislamiento
 ```
 
 Las pruebas SQL corren dentro de una transacción que se **revierte**: no dejan

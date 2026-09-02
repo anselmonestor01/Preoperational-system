@@ -12,6 +12,14 @@
 -- Todo corre dentro de una transacción que se REVIERTE al final: no deja ni un
 -- solo registro. Si una regla falla, el script aborta indicando cuál y por qué.
 --
+-- LO QUE ESTA SUITE **NO** PRUEBA
+-- Se ejecuta con el rol de la conexión (normalmente `postgres`), que tiene
+-- BYPASSRLS. Sirve para las reglas de negocio, porque viven dentro de funciones
+-- SECURITY DEFINER que hacen sus propias comprobaciones, pero NO puede probar
+-- las políticas RLS: desde aquí se ven todas las filas de todas las empresas.
+-- El aislamiento entre empresas se prueba en `aislamiento.test.sql`, que sí
+-- cambia a rol `authenticated`.
+--
 -- ESTA SUITE YA ENCONTRÓ UN FALLO REAL: detectó que NINGÚN ítem del checklist
 -- estaba marcado como crítico de seguridad, de modo que el sistema autorizaba
 -- la salida de un vehículo con los frenos en mal estado. Corregido en la

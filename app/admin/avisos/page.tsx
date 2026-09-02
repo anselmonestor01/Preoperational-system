@@ -56,5 +56,17 @@ export default async function AvisosPage() {
     en_ruta: enRutaPorConductor.get(d.id) ?? null,
   })) as ConductorRow[];
 
-  return <AvisosClient rows={(avisos.data ?? []) as AvisoRow[]} conductores={rows} />;
+  // Si la lectura falla (permisos, sesión caducada), hay que enterarse: antes se
+  // descartaba el error y la pantalla decía "no hay avisos" con la consulta rota.
+  if (avisos.error) {
+    console.error("[avisos] no se pudieron leer los avisos:", avisos.error.message);
+  }
+
+  return (
+    <AvisosClient
+      rows={(avisos.data ?? []) as AvisoRow[]}
+      conductores={rows}
+      errorLectura={avisos.error?.message ?? null}
+    />
+  );
 }

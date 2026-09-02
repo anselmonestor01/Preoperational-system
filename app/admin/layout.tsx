@@ -16,7 +16,12 @@ export default async function AdminLayout({
   if (!ADMIN_ROLES.includes(profile.role)) redirect("/kiosco");
   return (
     <DialogProvider>
-      <AdminShell name={profile.full_name} role={profile.role}>
+      <AdminShell
+        name={profile.full_name}
+        role={profile.role}
+        orgName={profile.organization_name}
+        isSuperadmin={profile.is_superadmin}
+      >
         {children}
       </AdminShell>
     </DialogProvider>

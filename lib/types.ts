@@ -15,11 +15,18 @@ export type VehicleStatus = "active" | "inactive" | "archived";
 
 export interface Profile {
   id: string;
+  /** Empresa que el usuario está viendo AHORA (no necesariamente la suya de origen). */
   organization_id: string;
+  organization_name: string | null;
+  /** Rol en la empresa activa. Puede diferir entre empresas. */
   role: Role;
   full_name: string;
   email: string;
   active: boolean;
+  /** Dueño del sistema: puede crear empresas y ver la consola de plataforma. */
+  is_superadmin: boolean;
+  /** A cuántas empresas puede entrar. Si es 1, no se muestra el selector. */
+  organizations_count: number;
 }
 
 export interface Organization {

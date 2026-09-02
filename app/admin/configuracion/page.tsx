@@ -1,5 +1,6 @@
 // Configuración: checklist activo y parámetros de operación de la organización.
 import { createClient } from "@/lib/supabase/server";
+import { getProfile } from "@/lib/auth";
 import { fmtDateTime } from "@/lib/format";
 import ConfigClient from "./config-client";
 
@@ -7,12 +8,16 @@ export const dynamic = "force-dynamic";
 
 export default async function ConfiguracionPage() {
   const supabase = createClient();
+  const perfil = await getProfile();
   const [{ data: cats }, { data: versions }, { data: org }] = await Promise.all([
     supabase.from("checklist_categories")
       .select("id,key,name,icon,sort_order,active,checklist_items(id,name,item_type,required,is_safety_critical,active,sort_order)")
       .order("sort_order"),
     supabase.from("checklist_versions").select("id,version_number,active,note,created_at").order("version_number", { ascending: false }).limit(20),
-    supabase.from("organizations").select("id,name,max_non_critical_bad,timezone").maybeSingle(),
+    // Filtrado por la empresa activa: un superadministrador ve varias, y sin
+    // este filtro `maybeSingle()` fallaría con "multiple rows returned".
+    supabase.from("organizations").select("id,name,max_non_critical_bad,timezone")
+      .eq("id", perfil?.organization_id ?? "").maybeSingle(),
   ]);
   const active = (versions ?? []).find((v) => v.active);
 
