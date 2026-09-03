@@ -11,7 +11,7 @@ import Logo from "@/components/brand/Logo";
 import { createClient } from "@/lib/supabase/client";
 import { friendlyError } from "@/lib/errors";
 
-export default function LoginForm() {
+export default function LoginForm({ aviso = null }: { aviso?: string | null }) {
   const router = useRouter();
   const supabase = createClient();
   const [email, setEmail] = useState("");
@@ -68,6 +68,8 @@ export default function LoginForm() {
         </div>
         <h1 className="login-title">Iniciar sesión</h1>
         <p className="login-sub">Inspección preoperacional de flotas — acceso corporativo.</p>
+
+        {aviso && <div className="err-box" style={{ marginBottom: 14 }}>{aviso}</div>}
 
         <div className="form-group">
           <label htmlFor="email">Correo electrónico</label>
