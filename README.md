@@ -122,12 +122,21 @@ Scripts: `npm run build`, `npm run start`, `npm run typecheck`, `npm run lint`.
 
 ---
 
-## Credenciales demo (⚠️ cambiar en producción)
+## Cuentas de acceso
 
-| Rol       | Correo                      | Contraseña           | Ruta     |
-|-----------|-----------------------------|----------------------|----------|
-| Admin     | `admin@navierapacifico.com`   | `Preoperacional2026!` | `/admin` |
-| Operador  | `operador@navierapacifico.com`| `Kiosco2026!`         | `/kiosco`|
+Este repositorio **no contiene contraseñas**, y no debe volver a contenerlas:
+una contraseña escrita aquí queda en el historial de Git para siempre, aunque
+después se borre del archivo.
+
+| Rol      | Correo de ejemplo              | Ruta      | Dónde se cambia la contraseña            |
+|----------|--------------------------------|-----------|------------------------------------------|
+| Admin    | `admin@…`                      | `/admin`  | Supabase → Authentication → Users        |
+| Operador | `operador@…`                   | `/kiosco` | Supabase → Authentication → Users        |
+
+La **consola de plataforma** (`/consola`) tiene además una clave propia, que no
+vive en Supabase Auth sino como hash bcrypt en `app.platform_config`. La primera
+vez que un superadministrador entra, la pantalla le pide establecerla; no hay
+ningún valor por defecto.
 
 **Conductores y vehículos:** se dan de alta desde el panel de administración
 (*Conductores* y *Vehículos*). Cada conductor define su propio PIN de 4 dígitos,

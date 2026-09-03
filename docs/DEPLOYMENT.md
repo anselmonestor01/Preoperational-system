@@ -46,11 +46,16 @@ y fijar la Production Branch, luego **Redeploy**.
 Abre la URL y comprueba:
 
 1. **/login** carga con la identidad visual.
-2. Admin: `admin@navierapacifico.com` / `Preoperacional2026!` → `/admin` con KPIs reales.
-3. Operador: `operador@navierapacifico.com` / `Kiosco2026!` → `/kiosco`.
-4. Flujo conductor: conductor + PIN (`Juan Pérez`/`1234`) → vehículo → datos →
+2. Admin: entra con la cuenta de administrador → `/admin` con KPIs reales.
+3. Operador: entra con la cuenta de operador → `/kiosco`.
+4. Flujo conductor: conductor + su PIN de 4 dígitos → vehículo → datos →
    checklist → resumen → envío → resultado.
-5. Cambia las credenciales demo y los PIN antes de operar de verdad.
+5. Consola de plataforma: `/consola`. Pide la clave de consola, aparte del
+   inicio de sesión. La primera vez la establece el propio superadministrador.
+
+Las contraseñas se consultan y se cambian en Supabase → Authentication → Users.
+No se escriben en este documento ni en ningún archivo del repositorio: lo que
+entra en Git se queda en el historial aunque luego se borre.
 
 ## Migraciones en un proyecto Supabase nuevo
 
