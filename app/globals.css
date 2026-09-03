@@ -94,10 +94,13 @@ button{font-family:inherit;}
 .mode-btn .ds{font-size:12.5px; color:var(--muted); margin-top:2px;}
 
 /* ---------- Brand lockup ---------- */
-.brand{display:flex; align-items:center; gap:10px;}
+/* El logo es un gráfico APAISADO (2.23:1), no un icono cuadrado, así que va
+   SOBRE el texto de la marca y no a su lado: en una columna estrecha como la
+   barra lateral (236px), puestos en fila uno de los dos siempre queda
+   estrujado. Al ser columna, `align-items` es el eje horizontal. */
+.brand{display:flex; flex-direction:column; align-items:flex-start; gap:9px;}
 
-/* Marca del producto. El SVG lo pinta <Logo>; aquí sólo se reserva el espacio
-   y se alinea con el texto de la marca. */
+/* Marca del producto. El SVG lo pinta <Logo>; aquí sólo se reserva el espacio. */
 .brand-mark{ display:flex; align-items:center; flex-shrink:0; }
 
 .brand-text{line-height:1.05;}
@@ -224,7 +227,7 @@ button{font-family:inherit;}
 
 /* Landing (driver home) */
 .d-home{padding:8px 20px 28px; text-align:center;}
-.d-home .brand{justify-content:center; margin:12px 0 4px;}
+.d-home .brand{align-items:center; margin:12px 0 4px;}
 .d-home h1{
   font-size:22px; margin:0 0 8px; letter-spacing:-0.3px; color:var(--navy);
 }
@@ -1110,7 +1113,7 @@ img, svg, video, canvas { max-width: 100%; height: auto; }
   grid-column:1 / -1; min-width:0;
   font-size:11px; color:var(--muted); line-height:1.35;
 }
-.home2-brand{ display:flex; align-items:center; gap:9px; }
+.home2-brand{ display:flex; flex-direction:column; align-items:flex-start; gap:7px; }
 .home2-logo{ display:flex; align-items:center; flex-shrink:0; }
 .home2-brandtext{ display:flex; flex-direction:column; line-height:1.02; }
 .home2-brandtext .l1{
@@ -1517,7 +1520,7 @@ body.admin-mode{
   width:100%; max-width:400px;
   box-shadow:0 24px 64px rgba(0,0,0,.28), 0 0 0 1px rgba(255,255,255,.06);
 }
-.login-card .brand{ justify-content:center; margin-bottom:8px; }
+.login-card .brand{ align-items:center; margin-bottom:8px; }
 .login-card h1,
 .login-card .login-title{
   font-family:'Space Grotesk',sans-serif;
@@ -2158,7 +2161,7 @@ input::placeholder, textarea::placeholder{ color:var(--muted); opacity:1; }
   box-shadow:0 10px 30px rgba(11,37,69,.06);
 }
 .qr-poster-brand{
-  display:flex; align-items:center; justify-content:center; gap:12px;
+  display:flex; flex-direction:column; align-items:center; gap:10px;
   font-size:15px; letter-spacing:1.4px; font-weight:800; color:var(--navy);
   margin-bottom:20px;
 }

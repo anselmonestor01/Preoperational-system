@@ -89,7 +89,7 @@ export default function AdminShell({
       <aside className={"admin-sidebar" + (open ? " open" : "")}>
         <div className="sb-head">
           <div className="brand">
-            <span className="brand-mark"><Logo size={34} tone="light" /></span>
+            <span className="brand-mark"><Logo size={54} tone="light" /></span>
             <div className="brand-text"><span className="l1">PREOPERATIONAL </span><span className="l2">SYSTEM</span></div>
           </div>
           <div style={{ fontSize: 10.5, color: "rgba(255,255,255,.5)", marginTop: 4, letterSpacing: ".6px" }}>

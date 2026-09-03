@@ -63,7 +63,7 @@ export default function LoginForm() {
     <div className="admin-login-wrap">
       <form className="login-card" onSubmit={onSubmit}>
         <div className="brand">
-          <span className="brand-mark"><Logo size={40} /></span>
+          <span className="brand-mark"><Logo size={60} /></span>
           <div className="brand-text"><span className="l1">PREOPERATIONAL </span><span className="l2">SYSTEM</span></div>
         </div>
         <h1 className="login-title">Iniciar sesión</h1>
