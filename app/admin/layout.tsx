@@ -20,7 +20,6 @@ export default async function AdminLayout({
         name={profile.full_name}
         role={profile.role}
         orgName={profile.organization_name}
-        isSuperadmin={profile.is_superadmin}
       >
         {children}
       </AdminShell>

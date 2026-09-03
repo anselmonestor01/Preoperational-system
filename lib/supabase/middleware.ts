@@ -43,8 +43,13 @@ export async function updateSession(request: NextRequest) {
     path.startsWith("/favicon") ||
     path === "/auth/callback";
 
-  // Sin sesión → a login (salvo rutas públicas).
-  if (!user && !isPublic && (path.startsWith("/admin") || path.startsWith("/kiosco"))) {
+  // Sin sesión → a login (salvo rutas públicas). `/consola` entra aquí igual que
+  // el panel: la clave de consola es una SEGUNDA cerradura, no un sustituto del
+  // inicio de sesión, y la comprueba después `requireConsola()`.
+  if (
+    !user && !isPublic &&
+    (path.startsWith("/admin") || path.startsWith("/kiosco") || path.startsWith("/consola"))
+  ) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", path);

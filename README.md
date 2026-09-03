@@ -70,9 +70,15 @@ audit_logs`
   empresa activa, validada contra esa tabla, así que las 25 políticas RLS y los
   33 RPC pasaron a ser multiempresa sin cambiar ni una línea de ellos. El kiosco
   no lleva selector a propósito: la tableta de una portería es de esa empresa.
-- **Consola de plataforma:** `platform_overview()` devuelve, sólo al
-  superadministrador, conteos y fechas de todas las empresas — nunca placas,
-  nombres de conductor ni fotos. Contar sí; leer no.
+- **Consola de plataforma, aparte y bajo otra llave:** vive en `/consola`, no
+  en el panel de cliente, con su propio diseño y su propia clave. Entrar exige
+  las dos cosas a la vez: sesión de un usuario `superadmin` **y** la clave de
+  consola, canjeada por una sesión de 8 horas cuyo identificador viaja en una
+  cookie `httpOnly` atada a ese usuario. El hash de la clave vive en el esquema
+  `app`, que PostgREST no expone. Lo que se ve dentro lo da
+  `platform_overview()`: conteos y fechas de todas las empresas — nunca placas,
+  nombres de conductor ni fotos. Contar sí; leer no. A quien no es
+  superadministrador la dirección le responde 404, no 403.
 - **Un conductor, una salida a la vez:** mientras no registre el regreso, no
   puede iniciar otra inspección. Lo impone un disparador sobre `inspections`
   (`app.una_operacion_por_conductor`), así que vale para cualquier vía de
@@ -136,9 +142,11 @@ que se guarda con bcrypt y sólo puede revelarlo un administrador (acción audit
 
 ```
 app/                    Rutas Next.js (login, kiosco, admin/*, auth)
-components/admin/       Shell del panel (sidebar, topbar)
+app/consola/            Consola de plataforma: otra dirección, otra clave, otro diseño
+components/admin/       Shell del panel de cliente (sidebar, topbar)
+components/consola/     Shell de la consola (barra superior)
 lib/                    Clientes Supabase, tipos, helpers (checklist, formato)
-supabase/migrations/    Migraciones SQL versionadas (0001..0023)
+supabase/migrations/    Migraciones SQL versionadas (0001..0024)
 supabase/seed.sql       Datos demo (cliente ficticio de prueba)
 supabase/tests/         Pruebas de las reglas de negocio en PostgreSQL
 tests/                  Pruebas unitarias del cliente (Vitest)
@@ -151,6 +159,7 @@ docs/                   Arquitectura, seguridad, QA
 npm test                                                    # 71 pruebas del cliente
 psql "$DATABASE_URL" -f supabase/tests/rules.test.sql        # 18 reglas de negocio
 psql "$DATABASE_URL" -f supabase/tests/aislamiento.test.sql  # 14 de aislamiento
+psql "$DATABASE_URL" -f supabase/tests/consola.test.sql      # 24 de la clave de consola
 ```
 
 Las pruebas SQL corren dentro de una transacción que se **revierte**: no dejan

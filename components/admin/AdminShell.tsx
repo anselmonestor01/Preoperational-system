@@ -17,8 +17,6 @@ const ICONS: Record<string, string> = {
   conductores: '<circle cx="12" cy="8" r="3.4"/><path d="M5 20c1.2-3.6 4-5.4 7-5.4s5.8 1.8 7 5.4" stroke-linecap="round"/>',
   novedades: '<path d="M12 9v4M12 17h.01M10.3 3.9 2.5 17a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" stroke-linecap="round" stroke-linejoin="round"/>',
   avisos: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke-linecap="round" stroke-linejoin="round"/>',
-  empresas: '<path d="M3 21h18M5 21V7l7-4 7 4v14M9 9h.01M9 13h.01M9 17h.01M15 9h.01M15 13h.01M15 17h.01" stroke-linecap="round" stroke-linejoin="round"/>',
-  plataforma: '<path d="M3 3v18h18" stroke-linecap="round"/><path d="M7 15l3-4 3 3 5-7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="18" cy="7" r="1.6"/>',
   qr: '<rect x="3" y="3" width="7" height="7" rx="1.4"/><rect x="14" y="3" width="7" height="7" rx="1.4"/><rect x="3" y="14" width="7" height="7" rx="1.4"/><path d="M14 14h3v3h-3zM20 14v3M14 20h3M20 20h1" stroke-linecap="round"/>',
   rondas: '<path d="M21 12a9 9 0 1 1-3-6.7M21 4v4h-4" stroke-linecap="round" stroke-linejoin="round"/>',
   reportes: '<path d="M4 20V10M10 20V4M16 20v-7M4 20h16" stroke-linecap="round" stroke-linejoin="round"/>',
@@ -41,11 +39,10 @@ const NAV_BASE = [
   // "Auditoría" se retiró del menú por decisión de producto (los audit_logs siguen activos en backend).
 ];
 
-// Sólo para el dueño del sistema: crear empresas y vigilar la plataforma.
-const NAV_SUPERADMIN = [
-  { href: "/admin/empresas", key: "empresas", label: "Empresas" },
-  { href: "/admin/plataforma", key: "plataforma", label: "Plataforma" },
-];
+// La consola de plataforma NO vive aquí. Está en /consola, con su propia clave
+// y su propio diseño. Mezclarla con el menú del cliente confundía dos oficios
+// distintos y hacía que una sola contraseña abriera la operación de una empresa
+// y el panorama de todas.
 
 const TITLES: Record<string, [string, string]> = {
   "/admin": ["Dashboard", "Panorama operativo de la flota"],
@@ -59,8 +56,6 @@ const TITLES: Record<string, [string, string]> = {
   "/admin/reportes": ["Reportes", "Análisis, evidencia y exportación de la operación"],
   "/admin/usuarios": ["Usuarios", "Quién entra al sistema y con qué permisos"],
   "/admin/configuracion": ["Configuración", "Checklist, operación y sistema"],
-  "/admin/empresas": ["Empresas", "Alta y acceso a las empresas de la plataforma"],
-  "/admin/plataforma": ["Plataforma", "Cómo va cada empresa, sin ver sus datos"],
 };
 
 function navIcon(key: string) {
@@ -71,15 +66,14 @@ function navIcon(key: string) {
 }
 
 export default function AdminShell({
-  children, name, role, orgName = null, isSuperadmin = false,
+  children, name, role, orgName = null,
 }: {
   children: React.ReactNode;
   name: string;
   role: Role;
   orgName?: string | null;
-  isSuperadmin?: boolean;
 }) {
-  const NAV = isSuperadmin ? [...NAV_BASE, ...NAV_SUPERADMIN] : NAV_BASE;
+  const NAV = NAV_BASE;
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [title, sub] =
