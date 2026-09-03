@@ -87,11 +87,9 @@ end; $$;
 revoke execute on function public.reveal_driver_pin(uuid) from public, anon;
 grant execute on function public.reveal_driver_pin(uuid) to authenticated;
 
--- Backfill de la copia cifrada para los conductores demo (PINs conocidos del seed).
-update public.drivers d set pin_encrypted = extensions.pgp_sym_encrypt(v.pin, app.pin_key())
-from (values
-  ('Juan Pérez','1234'),('Carlos Rodríguez','2345'),('Ernesto Gómez','3456'),
-  ('Luis Martínez','4567'),('Jorge Ramírez','5678'),('Andrés Morales','6789')
-) as v(name,pin)
-where d.full_name = v.name and d.pin_encrypted is null
-  and d.organization_id = (select id from public.organizations where slug='naviera-pacifico');
+-- Aquí había un backfill de la copia cifrada para los conductores demo, con sus
+-- seis PIN escritos en claro. Se retiró: publicaba PIN adivinables en un
+-- repositorio público, y desde que el sembrado los genera al azar tampoco
+-- habría acertado ninguno. En una base ya migrada esta sentencia ya se
+-- ejecutó; en una nueva no tiene a quién aplicarse, porque los conductores se
+-- crean después. En ambos casos quitarla no cambia nada salvo la fuga.

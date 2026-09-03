@@ -3,11 +3,36 @@
 -- -----------------------------------------------------------------------------
 -- ⚠️  DATOS DE DEMOSTRACIÓN. El nombre de la organización es un CLIENTE ficticio
 -- (no el nombre del producto) para que la demo se vea como un tenant real.
--- Diferénciar de datos reales. Credenciales demo (CAMBIAR en producción de inmediato):
---   admin@navierapacifico.com     / Preoperacional2026!  (rol: admin)
---   operador@navierapacifico.com  / Kiosco2026!          (rol: operator/kiosco)
--- PIN demo de conductores: ver tabla más abajo (1234, 2345, ...).
+--
+-- LAS CONTRASEÑAS NO ESTÁN EN ESTE ARCHIVO, y no deben volver a estarlo: lo que
+-- entra en Git se queda en el historial aunque después se borre del archivo.
+-- Se pasan al ejecutarlo:
+--
+--   psql "$DATABASE_URL" \
+--     -v clave_admin="$CLAVE_ADMIN" \
+--     -v clave_operador="$CLAVE_OPERADOR" \
+--     -f supabase/seed.sql
+--
+-- Los PIN de los conductores demo se generan al azar en cada ejecución. Para
+-- conocerlos, el administrador los revela desde el panel (acción auditada), que
+-- es exactamente como funciona en producción.
 -- =============================================================================
+
+\if :{?clave_admin}
+\else
+  \echo 'FALTA: -v clave_admin="..." (mínimo 12 caracteres)'
+  \quit
+\endif
+\if :{?clave_operador}
+\else
+  \echo 'FALTA: -v clave_operador="..." (mínimo 12 caracteres)'
+  \quit
+\endif
+
+-- Se pasan por variable de sesión porque psql NO sustituye `:variables` dentro
+-- de una cadena delimitada por $$, y todo el sembrado vive en un bloque DO.
+select set_config('seed.clave_admin',    :'clave_admin',    false);
+select set_config('seed.clave_operador', :'clave_operador', false);
 
 do $$
 declare
@@ -16,6 +41,11 @@ begin
   if exists (select 1 from public.organizations where slug='naviera-pacifico') then
     raise notice 'Seed demo ya aplicado; se omite.';
     return;
+  end if;
+
+  if length(current_setting('seed.clave_admin')) < 12
+     or length(current_setting('seed.clave_operador')) < 12 then
+    raise exception 'Las claves del sembrado deben tener al menos 12 caracteres';
   end if;
 
   insert into public.organizations(name, slug, timezone)
@@ -28,7 +58,7 @@ begin
     confirmation_token,recovery_token,email_change_token_new,email_change,
     email_change_token_current,reauthentication_token)
   values ('00000000-0000-0000-0000-000000000000', v_admin,'authenticated','authenticated',
-    'admin@navierapacifico.com', extensions.crypt('Preoperacional2026!', extensions.gen_salt('bf')),
+    'admin@navierapacifico.com', extensions.crypt(current_setting('seed.clave_admin'), extensions.gen_salt('bf')),
     now(),now(),now(),'{"provider":"email","providers":["email"]}',
     '{"full_name":"Administrador"}','','','','','','');
   insert into auth.identities(provider_id,user_id,identity_data,provider,last_sign_in_at,created_at,updated_at)
@@ -42,7 +72,7 @@ begin
     confirmation_token,recovery_token,email_change_token_new,email_change,
     email_change_token_current,reauthentication_token)
   values ('00000000-0000-0000-0000-000000000000', v_operator,'authenticated','authenticated',
-    'operador@navierapacifico.com', extensions.crypt('Kiosco2026!', extensions.gen_salt('bf')),
+    'operador@navierapacifico.com', extensions.crypt(current_setting('seed.clave_operador'), extensions.gen_salt('bf')),
     now(),now(),now(),'{"provider":"email","providers":["email"]}',
     '{"full_name":"Kiosco Planta"}','','','','','','');
   insert into auth.identities(provider_id,user_id,identity_data,provider,last_sign_in_at,created_at,updated_at)
@@ -147,20 +177,22 @@ begin
     (v_org,'YZA-567','Camión de carga','active'),
     (v_org,'BCD-890','Camión de carga','active');
 
-  -- ---- Conductores (PIN demo hasheado con bcrypt) ----------------------------
+  -- ---- Conductores ------------------------------------------------------------
+  -- El PIN se genera al azar. Antes eran 1234, 2345, 3456...: publicados en el
+  -- repositorio y adivinables en tres intentos. El administrador los consulta
+  -- desde el panel, que es como se hace en producción.
   insert into public.drivers(organization_id,full_name,pin_hash,pin_encrypted,created_by)
   select v_org, x.name,
          extensions.crypt(x.pin, extensions.gen_salt('bf')),
          extensions.pgp_sym_encrypt(x.pin, app.pin_key()),
          v_admin
-  from (values
-    ('Juan Pérez','1234'),
-    ('Carlos Rodríguez','2345'),
-    ('Ernesto Gómez','3456'),
-    ('Luis Martínez','4567'),
-    ('Jorge Ramírez','5678'),
-    ('Andrés Morales','6789')
-  ) as x(name,pin);
+  from (
+    select name, lpad((floor(random() * 10000))::int::text, 4, '0') as pin
+    from (values
+      ('Juan Pérez'), ('Carlos Rodríguez'), ('Ernesto Gómez'),
+      ('Luis Martínez'), ('Jorge Ramírez'), ('Andrés Morales')
+    ) as v(name)
+  ) as x;
 
   -- ---- Ronda inicial abierta -------------------------------------------------
   insert into public.rounds(organization_id,round_number,label,status,started_by)
