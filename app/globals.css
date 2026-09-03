@@ -412,7 +412,10 @@ body.admin-mode #driverShell{display:none !important;}
 .admin-shell{display:flex; min-height:100vh;}
 .admin-sidebar{
   width:236px; background:var(--navy); color:#fff; display:flex; flex-direction:column; flex-shrink:0;
-  position:sticky; top:0; height:100vh; overflow:hidden;
+  position:sticky; top:0; overflow:hidden;
+  /* `dvh` descuenta la barra del navegador móvil, que con `vh` deja el pie de
+     la barra lateral —el usuario y el botón de salir— fuera de la pantalla. */
+  height:100vh; height:100dvh;
 }
 .admin-sidebar .brand-text .l1, .admin-sidebar .brand-text .l2{color:#fff;}
 .sb-watermark{position:absolute; left:-18px; bottom:-14px; opacity:.05; pointer-events:none;}
@@ -663,8 +666,22 @@ body.admin-mode #driverShell{display:none !important;}
    RESPONSIVE — ALL DEVICES (mobile / tablet / desktop)
    ========================================================= */
 
-/* Prevent horizontal overflow globally */
+/* Evitar desbordamiento horizontal en toda la aplicación.
+   ---------------------------------------------------------------------------
+   Aquí había `overflow-x: hidden`, y era la razón de que la barra lateral del
+   panel se cortara al bajar: poner `overflow-x` en algo distinto de `visible`
+   obliga al navegador a calcular `overflow-y: auto`, con lo que <html>/<body>
+   pasan a ser su propio contenedor de scroll y `position: sticky` deja de
+   anclarse a la ventana. La barra se iba con el scroll y el fondo claro
+   quedaba a la vista debajo.
+
+   `overflow-x: clip` recorta igual pero NO crea contenedor de scroll, así que
+   sticky sigue funcionando. Se deja `hidden` como respaldo para navegadores
+   antiguos que no conocen `clip` (Safari anterior a la 16). */
 html, body { max-width: 100%; overflow-x: hidden; }
+@supports (overflow-x: clip) {
+  html, body { overflow-x: clip; }
+}
 img, svg, video, canvas { max-width: 100%; height: auto; }
 .admin-body, .d-body, .panel, .sheet { max-width: 100%; }
 
