@@ -85,7 +85,10 @@ audit_logs`
   escritura y no sólo para `submit_inspection`. El kiosco lo muestra antes: el
   conductor aparece bloqueado en la lista, con la placa y la hora de salida. Si
   un vehículo nunca vuelve, el administrador libera al conductor anulando la
-  inspección desde el panel.
+  inspección desde el panel. Y si el conductor pierde el teléfono con el que
+  registró la salida, el propio kiosco le ofrece cerrar el regreso en cuanto
+  teclea su PIN: esa verificación prueba su identidad mejor que un
+  identificador de navegador, que cualquiera puede borrar o copiar.
 - **Avisos en bandeja de salida:** `notifications` encola los mensajes de
   WhatsApp. Una inspección nunca falla porque el proveedor de mensajería esté
   caído; el aviso se envía después.
@@ -169,6 +172,7 @@ npm test                                                    # 71 pruebas del cli
 psql "$DATABASE_URL" -f supabase/tests/rules.test.sql        # 18 reglas de negocio
 psql "$DATABASE_URL" -f supabase/tests/aislamiento.test.sql  # 14 de aislamiento
 psql "$DATABASE_URL" -f supabase/tests/consola.test.sql      # 24 de la clave de consola
+psql "$DATABASE_URL" -f supabase/tests/regreso.test.sql      # 7 del desbloqueo del regreso
 ```
 
 Las pruebas SQL corren dentro de una transacción que se **revierte**: no dejan

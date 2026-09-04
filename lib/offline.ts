@@ -54,6 +54,17 @@ export type DraftState = {
   kmInicial: string;
   fuelIn: string;
   obs: string;
+  /**
+   * Novedades ya registradas, con la ruta de sus fotos en el almacén.
+   *
+   * Antes no se guardaban: si el teléfono se apagaba a mitad del checklist, el
+   * conductor recuperaba las respuestas pero perdía las novedades y las fotos,
+   * que es justo lo que más cuesta volver a hacer de pie en el patio.
+   *
+   * `preview` es una URL de objeto del navegador y muere al recargar; se
+   * conserva el campo por compatibilidad de tipo, pero al restaurar se vacía.
+   */
+  issues: Record<string, { note: string; evidence: { path: string; preview: string }[] }>;
   roundId: string | null;
   savedAt: number;
 };

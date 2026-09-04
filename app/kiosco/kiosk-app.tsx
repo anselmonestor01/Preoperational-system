@@ -115,14 +115,14 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
     if (step === "home" || step === "final") return;
     const t = setTimeout(() => {
       guardarBorrador({
-        step, driver, vehicle, catIndex, answers,
+        step, driver, vehicle, catIndex, answers, issues,
         kmInicial, fuelIn, obs,
         roundId: round?.id ?? null,
         savedAt: Date.now(),
       }).catch(() => {});
     }, 800);
     return () => clearTimeout(t);
-  }, [step, driver, vehicle, catIndex, answers, kmInicial, fuelIn, obs, round]);
+  }, [step, driver, vehicle, catIndex, answers, issues, kmInicial, fuelIn, obs, round]);
 
   // Recuperación del borrador tras cerrar la aplicación a medio checklist.
   const [borradorPrevio, setBorradorPrevio] = useState<Awaited<ReturnType<typeof leerBorrador>>>(null);
@@ -131,15 +131,35 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
     leerBorrador().then((b) => {
       // Sólo se ofrece si es de la ronda vigente: un borrador de otra ronda ya
       // no es válido para la operación de hoy.
-      if (b && b.roundId === round.id && b.driver && b.vehicle) setBorradorPrevio(b);
+      // Basta con que haya conductor. Antes se exigía también vehículo, de modo
+      // que un formulario interrumpido antes de elegir camión se perdía sin que
+      // el conductor llegara a enterarse de que existía.
+      if (b && b.roundId === round.id && b.driver) setBorradorPrevio(b);
     });
   }, [loading, round]);
+
+  /** "hace 2 minutos", "hace 3 horas". Redactado para leerse de un vistazo. */
+  function haceCuanto(ms: number): string {
+    const seg = Math.max(0, Math.round((Date.now() - ms) / 1000));
+    if (seg < 60) return "hace unos segundos";
+    const min = Math.round(seg / 60);
+    if (min < 60) return `hace ${min} ${min === 1 ? "minuto" : "minutos"}`;
+    const h = Math.round(min / 60);
+    if (h < 24) return `hace ${h} ${h === 1 ? "hora" : "horas"}`;
+    const d = Math.round(h / 24);
+    return `hace ${d} ${d === 1 ? "día" : "días"}`;
+  }
 
   function retomarBorrador() {
     const b = borradorPrevio;
     if (!b) return;
     setDriver(b.driver); setVehicle(b.vehicle); setCatIndex(b.catIndex);
     setAnswers(b.answers); setKmInicial(b.kmInicial); setFuelIn(b.fuelIn); setObs(b.obs);
+    const recuperadas: typeof issues = {};
+    for (const [id, v] of Object.entries(b.issues ?? {})) {
+      recuperadas[id] = { note: v.note, evidence: (v.evidence ?? []).map((e) => ({ path: e.path, preview: "" })) };
+    }
+    setIssues(recuperadas);
     setStep(b.step as Step);
     setBorradorPrevio(null);
   }
@@ -169,6 +189,11 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
   const [pinFor, setPinFor] = useState<Drv | null>(null);
   const [pin, setPin] = useState("");
   const [pinErr, setPinErr] = useState("");
+  // Operación abierta que el PIN acaba de destapar. Se guarda aparte de
+  // `openOps` porque aquélla sólo trae las salidas de ESTE dispositivo, y el
+  // caso que hay que desatascar es justamente el del conductor que vuelve
+  // desde otro teléfono o con el navegador limpio.
+  const [regresoPendiente, setRegresoPendiente] = useState<OpenOp | null>(null);
   const [pinBusy, setPinBusy] = useState(false);
   // Verifica el PIN y RESERVA el perfil para este dispositivo en un solo paso.
   // Así dos teléfonos no pueden inspeccionar con la misma identidad a la vez.
@@ -184,7 +209,7 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
 
     if (data?.ok) {
       setDriver({ id: pinFor.id, name: pinFor.full_name });
-      setPinFor(null); setPin("");
+      setPinFor(null); setPin(""); setRegresoPendiente(null);
       showToast("Identidad verificada: " + pinFor.full_name);
       return;
     }
@@ -194,7 +219,20 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
       const desde = data.desde ? ` desde las ${fmtTime(data.desde)}` : "";
       setPinErr(
         `Tienes ${data.placa ?? "un vehículo"} en ruta${desde}. ` +
-        `Registra su regreso antes de iniciar otra inspección.`);
+        `Registra su regreso para poder iniciar otra inspección.`);
+      // El PIN ya demostró quién es. Se le ofrece cerrar la operación aquí
+      // mismo: antes el formulario de regreso sólo aparecía en el dispositivo
+      // que registró la salida, y quien perdía ese teléfono quedaba bloqueado
+      // hasta que un administrador anulara la inspección.
+      if (data.inspeccion) {
+        setRegresoPendiente({
+          id: data.inspeccion as string,
+          vehicle_plate: (data.placa as string) ?? null,
+          driver_name: (data.conductor as string) ?? pinFor.full_name,
+          km_inicial: (data.km_inicial as number) ?? null,
+          submitted_at: (data.desde as string) ?? null,
+        });
+      }
       setPin("");
       return;
     }
@@ -476,7 +514,9 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
               <div>
                 <div className="draft-resume-title">Tienes una inspección a medias</div>
                 <div className="cell-sub">
-                  {borradorPrevio.vehicle?.plate} · {borradorPrevio.driver?.name}
+                  {[borradorPrevio.vehicle?.plate, borradorPrevio.driver?.name]
+                    .filter(Boolean).join(" · ")}
+                  {borradorPrevio.savedAt ? ` · ${haceCuanto(borradorPrevio.savedAt)}` : ""}
                 </div>
               </div>
               <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
@@ -780,6 +820,20 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
             onChange={(e) => setPin(e.target.value.replace(/[^\d]/g, ""))}
             onKeyDown={(e) => { if (e.key === "Enter") confirmPin(); }} autoFocus />
           {pinErr && <div className="err-box" style={{ marginTop: 10 }}>{pinErr}</div>}
+          {regresoPendiente && (
+            <button
+              className="btn btn-primary"
+              style={{ width: "100%", marginTop: 10 }}
+              onClick={() => {
+                const op = regresoPendiente;
+                setPinFor(null); setPin(""); setPinErr(""); setRegresoPendiente(null);
+                setKmFinal(""); setFuelOut("lleno");
+                setCierreOp(op);
+              }}
+            >
+              Registrar regreso de {regresoPendiente.vehicle_plate ?? "mi vehículo"}
+            </button>
+          )}
           <button className="btn btn-primary btn-block" style={{ marginTop: 14 }} disabled={pin.length < 4 || pinBusy} onClick={confirmPin}>
             {pinBusy ? "Verificando…" : "Confirmar"}</button>
         </div>
@@ -830,7 +884,9 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
           )}
           {cierreOp && (
             <div className="device-note">
-              Salida registrada desde este dispositivo
+              {openOps.some((o) => o.id === cierreOp.id)
+                ? "Salida registrada desde este dispositivo"
+                : "Identidad confirmada con tu PIN. Salida registrada"}
               {cierreOp.submitted_at ? ` a las ${fmtTime(cierreOp.submitted_at)}` : ""}
               {cierreOp.driver_name ? ` por ${cierreOp.driver_name}` : ""}.
             </div>
