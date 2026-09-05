@@ -15,6 +15,7 @@ import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { initials, fmtDateTime } from "@/lib/format";
+import { nombresRepetidos, distintivo } from "@/lib/homonimos";
 import { horasDesde, antiguedad } from "@/lib/urgencia";
 import { friendlyError } from "@/lib/errors";
 import { compressImage, AVATAR_PRESET } from "@/lib/image";
@@ -83,6 +84,10 @@ export default function DriversClient({
     { id: "operaron", texto: "Ya operaron" , tono: "warn" },
     { id: "inactivos", texto: "Inactivos" },
   ];
+
+  // Dos conductores homónimos son normales en una plantilla grande; sin nada
+  // que los distinga, el administrador no sabe a cuál está editando.
+  const homonimos = useMemo(() => nombresRepetidos(rows), [rows]);
 
   const filtrados = useMemo(
     () => rows.filter(grupos[filtro]).filter((d) => d.full_name.toLowerCase().includes(q.toLowerCase())),
@@ -197,6 +202,7 @@ export default function DriversClient({
                         </span>
                         <span>{d.full_name}</span>
                         <span className="sugerencia-sub">
+                          {distintivo(d, homonimos) ? distintivo(d, homonimos) + " · " : ""}
                           {e === "operacion" ? "en ruta" : e === "operaron" ? "ya operó" : e === "inactivos" ? "inactivo" : "disponible"}
                         </span>
                       </button>
@@ -235,6 +241,11 @@ export default function DriversClient({
                       {photo ? <img src={photo} alt="" className="drv-photo" /> : initials(d.full_name)}
                     </span>
                     <span>{d.full_name}</span>
+                    {distintivo(d, homonimos) && (
+                      <span className="badge neutral" style={{ marginLeft: 6, fontWeight: 600 }}>
+                        {distintivo(d, homonimos)}
+                      </span>
+                    )}
                     {!d.active ? <span className="badge bad" style={{ marginLeft: 6 }}>Inactivo</span>
                       : enRuta[d.id] ? <span className="badge info" style={{ marginLeft: 6 }}>En operación</span>
                       : yaOperaron[d.id] ? <span className="badge warn" style={{ marginLeft: 6 }}>Ya operó</span>

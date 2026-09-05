@@ -5,10 +5,11 @@
 // de autorización lo calcula SIEMPRE el servidor (RPC `submit_inspection`);
 // aquí sólo se previsualiza. Incluye autoguardado de borrador e idempotencia.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { optionsFor, severityOf, previewResult } from "@/lib/checklist";
 import { fmtKm, fmtTime, initials } from "@/lib/format";
+import { nombresRepetidos, distintivo } from "@/lib/homonimos";
 import { compressImage, EVIDENCE_PRESET } from "@/lib/image";
 import { friendlyError } from "@/lib/errors";
 import { KM_MAX, soloDigitos, kmValido, kmRegresoValido, LIMITES } from "@/lib/validation";
@@ -25,7 +26,7 @@ type Step = "home" | "driver" | "vehicle" | "datos" | "inspect" | "summary" | "f
 type CItem = { id: string; name: string; item_type: ItemType; is_safety_critical: boolean };
 type CCat = { key: string; name: string; icon: string; items: CItem[] };
 type Veh = { id: string; plate: string; availability: string; admin_block_reason: string | null; open_issue_count: number };
-type Drv = { id: string; full_name: string; photo_path: string | null; photoUrl?: string | null };
+type Drv = { id: string; full_name: string; license: string | null; photo_path: string | null; photoUrl?: string | null };
 type OpenOp = { id: string; vehicle_plate: string | null; driver_name: string | null; km_inicial: number | null; submitted_at: string | null };
 /** Salida sin regreso registrado, para marcar al conductor como no disponible. */
 type EnRuta = { placa: string | null; desde: string | null };
@@ -37,6 +38,9 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
   const [round, setRound] = useState<{ id: string; label: string } | null>(null);
   const [checklist, setChecklist] = useState<CCat[]>([]);
   const [drivers, setDrivers] = useState<Drv[]>([]);
+  // Se calcula una vez por render y no dentro del bucle: recorrer la lista
+  // entera por cada fila sería cuadrático, y en el kiosco corre en un móvil.
+  const homonimos = useMemo(() => nombresRepetidos(drivers), [drivers]);
   const [vehicles, setVehicles] = useState<Veh[]>([]);
   const [openOps, setOpenOps] = useState<OpenOp[]>([]);
   const [enRuta, setEnRuta] = useState<Record<string, EnRuta>>({});
@@ -71,7 +75,7 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
     const [{ data: boot }, cats, drv, veh, ops, rutas] = await Promise.all([
       supabase.rpc("app_bootstrap"),
       supabase.from("checklist_versions").select("structure").eq("active", true).maybeSingle(),
-      supabase.from("drivers").select("id,full_name,photo_path").eq("active", true).order("full_name"),
+      supabase.from("drivers").select("id,full_name,license,photo_path").eq("active", true).order("full_name"),
       supabase.from("vehicle_status_view").select("id,plate,availability,admin_block_reason,open_issue_count").eq("status", "active").order("plate"),
       // Sólo las operaciones abiertas de ESTE dispositivo: el regreso lo cierra
       // quien registró la salida, no cualquiera que abra el kiosco.
@@ -577,6 +581,10 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
               {drivers.map((d) => {
                 const sel = driver?.id === d.id;
                 const ruta = enRuta[d.id];
+                // Dos conductores con el mismo nombre no es raro en una flota
+                // grande. Sin nada que los distinga, uno toca el perfil del
+                // otro y el PIN le falla sin explicación.
+                const aclara = distintivo(d, homonimos);
                 // Con un vehículo en ruta no puede iniciar otra inspección. Se
                 // muestra bloqueado aquí, igual que los vehículos, para que no
                 // llegue hasta el PIN sin saber por qué.
@@ -584,7 +592,9 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
                   <div key={d.id} className="pick-row locked" title="Debe registrar el regreso">
                     <div className="pick-avatar" style={{ background: "var(--orange-soft)", color: "var(--orange)" }}>⏳</div>
                     <div className="pick-main">
-                      <div className="pick-name" style={{ color: "var(--muted)" }}>{d.full_name}</div>
+                      <div className="pick-name" style={{ color: "var(--muted)" }}>
+                        {d.full_name}{aclara && <span className="pick-aclara">{aclara}</span>}
+                      </div>
                       <div className="pick-sub" style={{ color: "var(--orange)" }}>
                         {ruta.placa ?? "Vehículo"} en ruta{ruta.desde ? ` desde las ${fmtTime(ruta.desde)}` : ""} · falta registrar el regreso
                       </div>
@@ -594,8 +604,12 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
                 return (
                   <div key={d.id} className={"pick-row" + (sel ? " selected" : "")} onClick={() => setPinFor(d)}>
                     <div className="pick-avatar">{d.photoUrl ? <img src={d.photoUrl} alt="" className="drv-photo" /> : initials(d.full_name)}</div>
-                    <div className="pick-main"><div className="pick-name">{d.full_name}</div>
-                      <div className="pick-sub">{sel ? "Identidad verificada con PIN" : "Toca para verificar con tu PIN"}</div></div>
+                    <div className="pick-main">
+                      <div className="pick-name">
+                        {d.full_name}{aclara && <span className="pick-aclara">{aclara}</span>}
+                      </div>
+                      <div className="pick-sub">{sel ? "Identidad verificada con PIN" : "Toca para verificar con tu PIN"}</div>
+                    </div>
                     <div className="pick-check">{sel ? "✓" : ""}</div>
                   </div>
                 );

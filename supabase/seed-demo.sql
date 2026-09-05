@@ -271,13 +271,33 @@ declare
                         'Murillo','Bolaños','Caicedo','Mosquera','Riascos','Angulo','Balanta','Solís','Preciado','Ibargüen'];
   v_ape2 text[] := array['Gómez','Ríos','López','Díaz','Pérez','Sánchez','Álvarez','Muñoz','Jiménez','Ruiz',
                          'Cortés','Naranjo','Escobar','Toro','Velásquez','Giraldo','Cardona','Correa','Duque','Franco'];
-  i int; v_nombre text;
+  i int; v_nombre text; v_vistos text[] := '{}'; v_giro int;
 begin
   for i in 1..70 loop
-    v_nombre := v_nom[1 + (i * 7) % array_length(v_nom,1)] || ' ' ||
-                v_nom2[1 + (i * 11) % array_length(v_nom2,1)] || ' ' ||
-                v_ape[1 + (i * 13) % array_length(v_ape,1)] || ' ' ||
-                v_ape2[1 + (i * 17) % array_length(v_ape2,1)];
+    -- CUIDADO CON EL PERIODO. La primera versión combinaba los cuatro nombres
+    -- con `(i*k) % n` sobre listas de 40, 20, 40 y 20. Cada índice es coprimo
+    -- con su lista, así que cada uno tiene periodo igual al tamaño de la lista,
+    -- y el conjunto se repite cada mcm(40,20,40,20) = 40. Con setenta
+    -- conductores eso significaba treinta nombres repetidos exactos —los pares
+    -- (1,41), (2,42)… (30,70)— y no por azar, sino por construcción.
+    --
+    -- Ahora el cuarto elemento gira con `i / 40`, que rompe el ciclo, y además
+    -- se comprueba que el nombre no se haya usado ya: si se repitiera, se
+    -- desplaza el apellido hasta que sea único. Un generador que produce
+    -- homónimos silenciosos es peor que uno que falle.
+    v_giro := 0;
+    loop
+      v_nombre := v_nom[1 + (i * 7) % array_length(v_nom,1)] || ' ' ||
+                  v_nom2[1 + (i * 11) % array_length(v_nom2,1)] || ' ' ||
+                  v_ape[1 + (i * 13) % array_length(v_ape,1)] || ' ' ||
+                  v_ape2[1 + (i * 17 + (i / 40) * 3 + v_giro) % array_length(v_ape2,1)];
+      exit when not (v_nombre = any(v_vistos));
+      v_giro := v_giro + 1;
+      if v_giro > array_length(v_ape2,1) then
+        raise exception 'No se pudo generar un nombre único para el conductor %', i;
+      end if;
+    end loop;
+    v_vistos := v_vistos || v_nombre;
     -- C2 y C3 son las categorías de carga en Colombia; el número imita una
     -- cédula, que es lo que lleva impreso la licencia de verdad.
     perform public.admin_create_driver(
@@ -443,4 +463,6 @@ union all select 'borradores huérfanos',
 union all select 'inspecciones sembradas',
   (select count(*)::text from public.inspections), '170 aprox'
 union all select 'vehículos / conductores',
-  (select count(*) from public.vehicles)||' / '||(select count(*) from public.drivers), '77 / 77';
+  (select count(*) from public.vehicles)||' / '||(select count(*) from public.drivers), '77 / 77'
+union all select 'conductores con nombre repetido',
+  (select count(*)::text from (select full_name from public.drivers group by full_name having count(*)>1) x), '0';

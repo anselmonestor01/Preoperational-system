@@ -2403,3 +2403,10 @@ input::placeholder, textarea::placeholder{ color:var(--muted); opacity:1; }
   display:flex; justify-content:space-between; align-items:center;
   gap:10px; margin-top:14px; flex-wrap:wrap;
 }
+
+/* Distintivo de homónimos: sólo aparece cuando dos personas comparten nombre,
+   que en una flota grande pasa más de lo que parece. */
+.pick-aclara{
+  display:block; font-size:11.5px; font-weight:600; color:var(--muted);
+  margin-top:2px; letter-spacing:.2px;
+}
