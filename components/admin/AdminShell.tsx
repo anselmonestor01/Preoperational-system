@@ -9,6 +9,7 @@ import { initials } from "@/lib/format";
 import Logo from "@/components/brand/Logo";
 import OrgSwitcher from "@/components/admin/OrgSwitcher";
 import type { Role } from "@/lib/types";
+import BuscadorGlobal from "./BuscadorGlobal";
 
 const ICONS: Record<string, string> = {
   dashboard: '<rect x="3" y="3" width="8" height="8" rx="1.6"/><rect x="13" y="3" width="8" height="5" rx="1.6"/><rect x="13" y="10" width="8" height="11" rx="1.6"/><rect x="3" y="13" width="8" height="8" rx="1.6"/>',
@@ -138,6 +139,7 @@ export default function AdminShell({
             </div>
           </div>
           <div className="at-actions">
+            <BuscadorGlobal />
             <div className="date-chip">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.8" /><path d="M3 9h18M8 3v4M16 3v4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
               <span style={{ textTransform: "capitalize" }}>{today}</span>

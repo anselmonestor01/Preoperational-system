@@ -1,9 +1,20 @@
-// Dashboard: KPIs del día, curva horaria de inspecciones, estado de la flota y
-// novedades abiertas. Todo se lee con RLS (sólo la organización del usuario).
+// Tablero: el resumen ejecutivo de la operación.
+//
+// QUÉ SE PIDE DE ESTA PANTALLA
+// Que un administrador entienda el estado completo de la operación de un
+// vistazo y sin navegar a ningún otro módulo. Eso significa tres cosas que
+// antes no cumplía: que las cifras vengan acompañadas de qué hacer con ellas,
+// que lo urgente se distinga de lo reciente, y que TODO lo que informa de un
+// problema lleve al detalle de ese problema con un clic.
+//
+// Todo se lee con RLS (sólo la organización del usuario).
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { fmtTime } from "@/lib/format";
+import { motivoDe } from "@/lib/motivos";
+import { horasDesde, nivelUrgencia, PESO_URGENCIA } from "@/lib/urgencia";
 import NewRoundButton from "./rondas/new-round-button";
+import { ChipsDeUnidades, ListaDeAlertas, type Alerta, type UnidadChip } from "./flota-interactiva";
 
 export const dynamic = "force-dynamic";
 
@@ -81,33 +92,110 @@ export default async function DashboardPage() {
     .select("id,label,round_number,responsible").eq("status", "open")
     .order("round_number", { ascending: false }).limit(1).maybeSingle();
 
-  const [{ data: vehicles }, { data: todayInsp }, { data: openIssues }, { data: recent }] = await Promise.all([
-    supabase.from("vehicle_status_view").select("plate,availability,admin_block_reason").neq("status", "archived").order("plate"),
+  const [
+    { data: vehicles }, { data: todayInsp }, { data: allOpenIssues },
+    { data: recent }, { data: drivers }, { data: openOpsRows },
+  ] = await Promise.all([
+    supabase.from("vehicle_status_view")
+      .select("id,plate,availability,admin_block_reason,blocked_at,open_issue_count")
+      .neq("status", "archived").order("plate"),
     supabase.from("inspections")
-      .select("id,vehicle_plate,driver_name,result,authorized,status,operation_status,bad_count,warn_count,submitted_at")
+      .select("id,vehicle_id,vehicle_plate,driver_id,driver_name,result,authorized,status,operation_status,released,auth_reasons,bad_count,warn_count,submitted_at")
       .gte("submitted_at", start).lte("submitted_at", end).neq("status", "in_progress").neq("status", "voided"),
+    // Todas las abiertas, no sólo seis: hacen falta enteras para el reparto por
+    // categoría y para poder ordenar las alertas por antigüedad real.
     supabase.from("issues")
-      .select("id,item_name,category_key,severity,status,description,created_at,vehicles(plate)")
-      .neq("status", "resolved").order("created_at", { ascending: false }).limit(6),
+      .select("id,vehicle_id,item_name,category_key,severity,status,description,created_at,vehicles(plate)")
+      .neq("status", "resolved").order("created_at", { ascending: true }),
     supabase.from("inspections")
-      .select("id,vehicle_plate,driver_name,result,authorized,status,submitted_at")
+      .select("id,vehicle_plate,driver_name,result,authorized,status,operation_status,released,auth_reasons,submitted_at")
       .neq("status", "in_progress").order("created_at", { ascending: false }).limit(6),
+    supabase.from("drivers").select("id,full_name").eq("active", true),
+    // Operaciones abiertas de CUALQUIER día: un vehículo que salió ayer y no ha
+    // vuelto sigue en ruta hoy, aunque su inspección no sea de hoy.
+    supabase.from("inspections")
+      .select("id,vehicle_id,vehicle_plate,driver_id,driver_name,submitted_at")
+      .eq("operation_status", "open"),
   ]);
 
   const vlist = vehicles ?? [];
   const insp = todayInsp ?? [];
+  const enRuta = openOpsRows ?? [];
+  const abiertas = allOpenIssues ?? [];
   const total = insp.length;
   const authorized = insp.filter((i) => i.authorized === true).length;
   const rejected = insp.filter((i) => i.authorized === false).length;
   const okCount = insp.filter((i) => i.result === "bueno").length;
   const warnCount = insp.filter((i) => i.result === "regular").length;
   const badCount = insp.filter((i) => i.result === "malo").length;
-  const openOps = insp.filter((i) => i.operation_status === "open").length;
+  const openOps = enRuta.length;
 
   const available = vlist.filter((v) => v.availability === "available");
   const blocked = vlist.filter((v) => v.availability === "admin_blocked" || v.availability === "issues");
-  const pending = vlist.filter((v) => v.availability === "available");
   const noAuth = insp.filter((i) => i.authorized === false);
+
+  // --- Conductores: quién está fuera y quién puede salir --------------------
+  // La regla la impone la base (una operación abierta por conductor, y el
+  // vehículo ya inspeccionado queda tomado para la ronda). Aquí sólo se hace
+  // visible, para que el administrador no tenga que deducir por qué el sistema
+  // le está bloqueando a alguien.
+  const totalConductores = (drivers ?? []).length;
+  const idsEnOperacion = new Set(enRuta.map((o) => o.driver_id).filter(Boolean) as string[]);
+  const enOperacion = idsEnOperacion.size;
+  const yaOperaron = new Set(
+    insp.filter((i) => i.driver_id && !idsEnOperacion.has(i.driver_id))
+        .map((i) => i.driver_id as string)
+  ).size;
+  const disponibles = Math.max(0, totalConductores - enOperacion - yaOperaron);
+
+  // --- Alertas priorizadas --------------------------------------------------
+  // Dos fuentes con la misma pregunta detrás: ¿qué lleva más tiempo parado?
+  const alertas: Alerta[] = [];
+  abiertas.forEach((i: any) => {
+    if (!i.vehicle_id) return;
+    const h = horasDesde(i.created_at);
+    const grave = i.severity === "bad";
+    const nivel = nivelUrgencia(h, grave);
+    if (nivel === "reciente") return;   // todavía no es noticia
+    alertas.push({
+      vehicleId: i.vehicle_id, plate: i.vehicles?.plate ?? "—",
+      titulo: `${grave ? "Falla crítica" : "Novedad"} sin resolver: ${i.item_name}`,
+      sub: `${i.category_key ?? "sin categoría"}${i.description ? ` · ${i.description}` : ""}`,
+      nivel, horas: h,
+    });
+  });
+  vlist.forEach((v: any) => {
+    if (v.availability !== "admin_blocked" || !v.blocked_at) return;
+    const h = horasDesde(v.blocked_at);
+    const nivel = nivelUrgencia(h, true);
+    if (nivel === "reciente") return;
+    alertas.push({
+      vehicleId: v.id, plate: v.plate,
+      titulo: "Bloqueada por administración sin levantar",
+      sub: v.admin_block_reason || "sin motivo registrado",
+      nivel, horas: h,
+    });
+  });
+  alertas.sort((a, b) => PESO_URGENCIA[b.nivel] - PESO_URGENCIA[a.nivel] || b.horas - a.horas);
+  const alertasTop = alertas.slice(0, 6);
+
+  // --- Fichas clicables -----------------------------------------------------
+  const chipsBloqueados: UnidadChip[] = blocked.map((v: any) => ({
+    id: v.id, plate: v.plate,
+    tono: v.availability === "admin_blocked" ? "bad" : "warn",
+    nota: v.availability === "admin_blocked"
+      ? "bloqueo admin."
+      : `${v.open_issue_count} novedad${v.open_issue_count === 1 ? "" : "es"}`,
+  }));
+  const chipsDisponibles: UnidadChip[] = available.map((v: any) => ({ id: v.id, plate: v.plate, tono: "ok" }));
+  const chipsEnRuta: UnidadChip[] = enRuta.map((o: any) => ({
+    id: o.vehicle_id, plate: o.vehicle_plate ?? "—",
+    nota: (o.driver_name ?? "").split(" ")[0],
+  }));
+  const chipsNoAutorizados: UnidadChip[] = noAuth.map((i: any) => ({
+    id: i.vehicle_id, plate: i.vehicle_plate, tono: "bad",
+    nota: (i.driver_name ?? "").split(" ")[0],
+  }));
 
   // Line chart: inspecciones por hora (activas hoy)
   const byHour: Record<number, number> = {};
@@ -116,10 +204,10 @@ export default async function DashboardPage() {
   const hourLabels = hours.length ? hours.map((h) => String(h).padStart(2, "0")) : [];
   const hourValues = hours.map((h) => byHour[h]);
 
-  // Donut: novedades por categoría (abiertas)
-  const { data: allOpenIssues } = await supabase.from("issues").select("category_key").neq("status", "resolved");
+  // Donut: novedades por categoría (abiertas). Se calcula sobre las que ya se
+  // trajeron para las alertas, en vez de repetir la consulta.
   const catCounts: Record<string, number> = {};
-  (allOpenIssues ?? []).forEach((i) => { const k = i.category_key || "otros"; catCounts[k] = (catCounts[k] ?? 0) + 1; });
+  abiertas.forEach((i) => { const k = i.category_key || "otros"; catCounts[k] = (catCounts[k] ?? 0) + 1; });
   const catSegments = Object.entries(catCounts).map(([k, v], i) => ({ label: k, value: v, color: CAT_COLORS[i % CAT_COLORS.length] }));
   const catTotal = catSegments.reduce((s, x) => s + x.value, 0) || 1;
 
@@ -133,9 +221,13 @@ export default async function DashboardPage() {
     { label: "Inspecciones hoy", value: total, tone: "blue", foot: `${round?.label ?? "sin ronda"}`, icon: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6"/>' },
     { label: "Autorizados", value: authorized, tone: "green", foot: "para salir", icon: '<path d="M20 6 9 17l-5-5"/>' },
     { label: "No autorizados", value: rejected, tone: "red", foot: "bloqueados", icon: '<circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/>' },
-    { label: "Novedades abiertas", value: allOpenIssues?.length ?? 0, tone: "orange", foot: "requieren atención", icon: '<path d="M12 9v4M12 17h.01M10.3 3.9 2.5 17a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>' },
+    { label: "Novedades abiertas", value: abiertas.length, tone: "orange", foot: alertasTop.length ? `${alertasTop.length} requieren atención` : "ninguna urgente", icon: '<path d="M12 9v4M12 17h.01M10.3 3.9 2.5 17a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>' },
     { label: "Operaciones en ruta", value: openOps, tone: "navy", foot: "sin registrar regreso", icon: '<path d="M21 12a9 9 0 1 1-3-6.7"/>' },
   ];
+
+  const pctOperacion = totalConductores ? (enOperacion / totalConductores) * 100 : 0;
+  const pctYaOperaron = totalConductores ? (yaOperaron / totalConductores) * 100 : 0;
+  const pctDisponibles = totalConductores ? (disponibles / totalConductores) * 100 : 0;
 
   return (
     <>
@@ -168,12 +260,29 @@ export default async function DashboardPage() {
 
       {noAuth.length > 0 && (
         <div className="panel" style={{ marginBottom: 14, borderColor: "#F0C4B9" }}>
-          <div style={{ fontWeight: 700, color: "var(--red)", marginBottom: 6 }}>⛔ {noAuth.length} vehículo(s) NO AUTORIZADO(S) para salir</div>
-          <div className="plate-chip-list">
-            {noAuth.map((i) => <span key={i.id} className="plate-chip" style={{ background: "var(--red-soft)", color: "var(--red)" }}>{i.vehicle_plate} <span className="cell-sub">{i.driver_name}</span></span>)}
+          <div style={{ fontWeight: 700, color: "var(--red)", marginBottom: 8 }}>
+            ⛔ {noAuth.length} unidad(es) NO AUTORIZADA(S) para salir hoy
           </div>
+          <ChipsDeUnidades unidades={chipsNoAutorizados} vacio="" />
         </div>
       )}
+
+      {/* Lo que lleva más tiempo esperando, arriba del todo. Un listado sin
+          prioridad obliga a leerlo entero para saber por dónde empezar. */}
+      <div className="panel" style={{ marginBottom: 14 }}>
+        <div className="panel-head">
+          <div>
+            <div className="panel-title">Requiere atención</div>
+            <div className="panel-sub">
+              {alertasTop.length
+                ? "Ordenado por lo que lleva más tiempo sin resolverse. Pulsa para ver la unidad."
+                : "Sin pendientes que hayan superado su plazo."}
+            </div>
+          </div>
+          {abiertas.length > 0 && <Link className="panel-link" href="/admin/novedades">Ver novedades →</Link>}
+        </div>
+        <ListaDeAlertas alertas={alertasTop} />
+      </div>
 
       <div className="grid-3">
         <div className="panel">
@@ -210,57 +319,101 @@ export default async function DashboardPage() {
 
       <div className="grid-3">
         <div className="panel">
-          <div className="panel-head"><div><div className="panel-title">Pendientes por revisar</div><div className="panel-sub">{pending.length} de {vlist.length} vehículo(s)</div></div></div>
-          {pending.length ? <div className="plate-chip-list">{pending.map((v) => <span key={v.plate} className="plate-chip">{v.plate}</span>)}</div> : <div className="empty-state" style={{ padding: "30px 10px" }}>Todos revisados o en proceso.</div>}
+          <div className="panel-head">
+            <div>
+              <div className="panel-title">Conductores</div>
+              <div className="panel-sub">{totalConductores} activo(s) en la plantilla</div>
+            </div>
+            <Link className="panel-link" href="/admin/conductores">Ver todos →</Link>
+          </div>
+          {totalConductores ? (<>
+            <div className="medidor" title="Reparto de la plantilla ahora mismo">
+              <span className="medidor-parte" style={{ width: `${pctOperacion}%`, background: "var(--blue)" }} />
+              <span className="medidor-parte" style={{ width: `${pctYaOperaron}%`, background: "var(--orange)" }} />
+              <span className="medidor-parte" style={{ width: `${pctDisponibles}%`, background: "var(--green)" }} />
+            </div>
+            <div className="legend-row"><span className="legend-dot" style={{ background: "var(--blue)" }} /><span className="legend-name">En operación</span><span className="legend-val">{enOperacion}</span></div>
+            <div className="legend-row"><span className="legend-dot" style={{ background: "var(--orange)" }} /><span className="legend-name">Ya operaron hoy</span><span className="legend-val">{yaOperaron}</span></div>
+            <div className="legend-row"><span className="legend-dot" style={{ background: "var(--green)" }} /><span className="legend-name">Disponibles</span><span className="legend-val">{disponibles}</span></div>
+            <div className="cell-sub" style={{ marginTop: 8 }}>
+              Quien está en operación o ya cumplió su turno no puede iniciar otra
+              inspección hasta registrar el regreso o hasta la ronda siguiente.
+            </div>
+          </>) : <div className="empty-state" style={{ padding: "30px 10px" }}>Sin conductores activos.</div>}
         </div>
+
         <div className="panel">
-          <div className="panel-head"><div><div className="panel-title">Disponibles</div><div className="panel-sub">{available.length} vehículo(s) listos</div></div></div>
-          {available.length ? <div className="plate-chip-list">{available.map((v) => <span key={v.plate} className="plate-chip" style={{ background: "var(--green-soft)", color: "var(--green)" }}>{v.plate}</span>)}</div> : <div className="empty-state" style={{ padding: "30px 10px" }}>Ninguno disponible ahora.</div>}
+          <div className="panel-head">
+            <div><div className="panel-title">En ruta ahora</div>
+              <div className="panel-sub">{enRuta.length} unidad(es) sin registrar regreso</div></div>
+          </div>
+          <ChipsDeUnidades unidades={chipsEnRuta} vacio="Ninguna unidad fuera en este momento." />
         </div>
+
         <div className="panel">
-          <div className="panel-head"><div><div className="panel-title">Bloqueados</div><div className="panel-sub">{blocked.length} vehículo(s)</div></div></div>
-          {blocked.length ? <div className="manage-list">{blocked.map((v) => <div key={v.plate} className="manage-row manage-row-sm"><div className="manage-row-main"><span>{v.plate}</span></div><span className="cell-sub">{v.availability === "issues" ? "Novedades" : "Bloqueo admin."}</span></div>)}</div> : <div className="empty-state" style={{ padding: "30px 10px" }}>Ninguno bloqueado.</div>}
+          <div className="panel-head">
+            <div><div className="panel-title">Retenidas</div>
+              <div className="panel-sub">{blocked.length} de {vlist.length} unidad(es) · pulsa para ver el motivo</div></div>
+            <Link className="panel-link" href="/admin/vehiculos?f=bloqueados">Gestionar →</Link>
+          </div>
+          <ChipsDeUnidades unidades={chipsBloqueados} vacio="Ninguna unidad retenida." />
         </div>
+      </div>
+
+      <div className="panel">
+        <div className="panel-head">
+          <div><div className="panel-title">Disponibles para operar</div>
+            <div className="panel-sub">{available.length} unidad(es) sin novedades ni bloqueos</div></div>
+          <Link className="panel-link" href="/admin/vehiculos?f=disponibles">Ver flota →</Link>
+        </div>
+        <ChipsDeUnidades unidades={chipsDisponibles} vacio="Ninguna unidad disponible ahora mismo." />
       </div>
 
       <div className="grid-2">
         <div className="panel">
           <div className="panel-head">
-            <div><div className="panel-title">Inspecciones recientes</div><div className="panel-sub">Últimos envíos</div></div>
+            <div><div className="panel-title">Inspecciones recientes</div>
+              <div className="panel-sub">Últimos envíos, con el desenlace de cada uno</div></div>
             <Link className="panel-link" href="/admin/inspecciones">Ver todas →</Link>
           </div>
           {recent && recent.length ? (
             <table className="data-table">
-              <thead><tr><th>Vehículo</th><th>Conductor</th><th>Hora</th><th>Estado</th></tr></thead>
+              <thead><tr><th>Vehículo</th><th>Conductor</th><th>Hora</th><th>Desenlace</th></tr></thead>
               <tbody>
-                {recent.map((r) => (
-                  <tr key={r.id}>
-                    <td className="cell-veh">{r.vehicle_plate}</td>
-                    <td>{r.driver_name}</td>
-                    <td className="cell-sub">{fmtTime(r.submitted_at)}</td>
-                    <td>{r.authorized === false ? <span className="badge bad">No autorizado</span> : <span className={"badge " + (r.result === "bueno" ? "ok" : r.result === "regular" ? "warn" : "bad")}>{r.result ?? "—"}</span>}</td>
-                  </tr>
-                ))}
+                {recent.map((r) => {
+                  const m = motivoDe(r);
+                  return (
+                    <tr key={r.id}>
+                      <td className="cell-veh">{r.vehicle_plate}</td>
+                      <td>{r.driver_name}</td>
+                      <td className="cell-sub">{fmtTime(r.submitted_at)}</td>
+                      <td>
+                        <span className={"badge " + m.tono}>{m.titulo}</span>
+                        <div className="cell-sub">{m.detalle}</div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           ) : <div className="empty-state">Aún no se ha realizado ninguna inspección.</div>}
         </div>
+
         <div className="panel">
           <div className="panel-head">
-            <div><div className="panel-title">Novedades pendientes</div><div className="panel-sub">Requieren seguimiento</div></div>
+            <div><div className="panel-title">Novedades pendientes</div>
+              <div className="panel-sub">Las más antiguas primero · pulsa para ver la unidad</div></div>
             <Link className="panel-link" href="/admin/novedades">Ver todas →</Link>
           </div>
-          {openIssues && openIssues.length ? (
-            <div className="issue-list">
-              {openIssues.map((i: any) => (
-                <div key={i.id} className="issue-row">
-                  <span className={"issue-dot " + (i.severity === "bad" ? "bad" : "warn")} />
-                  <div className="issue-main"><div className="issue-veh">{i.vehicles?.plate ?? "—"}</div><div className="issue-desc">{i.item_name}{i.description ? ` — ${i.description}` : ""}</div></div>
-                  <span className={"badge " + (i.severity === "bad" ? "bad" : "warn")}>{i.severity === "bad" ? "Grave" : "Leve"}</span>
-                </div>
-              ))}
-            </div>
-          ) : <div className="empty-state">No hay novedades pendientes.</div>}
+          <ListaDeAlertas alertas={abiertas.slice(0, 6).map((i: any) => {
+            const h = horasDesde(i.created_at);
+            return {
+              vehicleId: i.vehicle_id, plate: i.vehicles?.plate ?? "—",
+              titulo: i.item_name,
+              sub: `${i.severity === "bad" ? "Crítica" : "Leve"} · ${i.category_key ?? "sin categoría"}${i.description ? ` · ${i.description}` : ""}`,
+              nivel: nivelUrgencia(h, i.severity === "bad"), horas: h,
+            };
+          })} />
         </div>
       </div>
     </>

@@ -2,6 +2,14 @@
 
 // Gestión de vehículos: alta, bloqueo/desbloqueo, liberación de novedades y
 // baja (archivar o eliminar). Las transiciones críticas van por RPC.
+//
+// A ESCALA
+// Con setenta unidades, escribir la placa deja de ser la vía principal: lo que
+// se busca casi siempre es un GRUPO —«los bloqueados», «los que salieron hoy»—
+// y no una unidad concreta. Los filtros rápidos convierten esa búsqueda en un
+// clic y llevan el recuento encima, para ver el tamaño del grupo antes de
+// entrar. Y para las unidades retenidas hay vista rápida: todas sus novedades
+// con evidencia y quién las reportó, sin abandonar la lista.
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -10,6 +18,7 @@ import { fmtDate } from "@/lib/format";
 import { friendlyError } from "@/lib/errors";
 import { useDialog } from "@/components/ui/dialogs";
 import { LIMITES, limpiarTexto, soloPlaca, soloDigitos, textoValido } from "@/lib/validation";
+import VehicleSheet from "@/components/admin/VehicleSheet";
 
 export interface VehicleRow {
   id: string; plate: string; reference: string | null; model: string | null;
@@ -27,7 +36,14 @@ const AVAIL: Record<string, { cls: string; dot: string; label: string }> = {
   archived: { cls: "neutral", dot: "off", label: "Archivado" },
 };
 
-export default function VehiclesClient({ rows, opsBy, roundLabel }: { rows: VehicleRow[]; opsBy: Record<string, number>; roundLabel: string }) {
+type Filtro = "todos" | "disponibles" | "novedades" | "bloqueados" | "hoy" | "ruta";
+
+export default function VehiclesClient({
+  rows, opsBy, roundLabel, inspeccionadosHoy, filtroInicial,
+}: {
+  rows: VehicleRow[]; opsBy: Record<string, number>; roundLabel: string;
+  inspeccionadosHoy: string[]; filtroInicial: string;
+}) {
   const supabase = createClient();
   const router = useRouter();
   const dialog = useDialog();
@@ -36,12 +52,40 @@ export default function VehiclesClient({ rows, opsBy, roundLabel }: { rows: Vehi
   const [toast, setToast] = useState("");
   const [edit, setEdit] = useState<VehicleRow | null>(null);
   const [creating, setCreating] = useState(false);
+  const FILTROS_VALIDOS: Filtro[] = ["todos", "disponibles", "novedades", "bloqueados", "hoy", "ruta"];
+  const [filtro, setFiltro] = useState<Filtro>(
+    (FILTROS_VALIDOS as string[]).includes(filtroInicial) ? (filtroInicial as Filtro) : "todos");
+  // Vista rápida: la ficha completa de la unidad sin salir de la lista.
+  const [ficha, setFicha] = useState<VehicleRow | null>(null);
 
   const show = (m: string) => { setToast(m); setTimeout(() => setToast(""), 2800); };
   const active = rows.filter((v) => v.status !== "archived");
   const archived = rows.filter((v) => v.status === "archived");
-  const list = active.filter((v) => v.plate.toLowerCase().includes(q.toLowerCase()));
+  const hoySet = new Set(inspeccionadosHoy);
   const blockedCount = active.filter((v) => v.availability !== "available").length;
+
+  const grupos: Record<Filtro, (v: VehicleRow) => boolean> = {
+    todos: () => true,
+    disponibles: (v) => v.availability === "available",
+    novedades: (v) => v.open_issue_count > 0,
+    bloqueados: (v) => v.admin_blocked || v.availability === "admin_blocked",
+    hoy: (v) => hoySet.has(v.id),
+    ruta: (v) => (opsBy[v.id] ?? 0) > 0,
+  };
+  const cuenta = (f: Filtro) => active.filter(grupos[f]).length;
+
+  const list = active
+    .filter(grupos[filtro])
+    .filter((v) => v.plate.toLowerCase().includes(q.toLowerCase()));
+
+  const CHIPS: { id: Filtro; texto: string; tono?: string }[] = [
+    { id: "todos", texto: "Toda la flota" },
+    { id: "disponibles", texto: "Disponibles", tono: "ok" },
+    { id: "ruta", texto: "En ruta" },
+    { id: "novedades", texto: "Con novedades", tono: "warn" },
+    { id: "bloqueados", texto: "Bloqueados", tono: "bad" },
+    { id: "hoy", texto: "Inspeccionados hoy" },
+  ];
 
   async function block(v: VehicleRow) {
     const reason = await dialog.prompt({
@@ -142,6 +186,21 @@ export default function VehiclesClient({ rows, opsBy, roundLabel }: { rows: Vehi
           </div>
         </div>
 
+        <div className="filtros-rapidos" style={{ marginBottom: 14 }}>
+          {CHIPS.map((c) => (
+            <button key={c.id}
+              className={"chip-filtro " + (c.tono ? "tono-" + c.tono + " " : "") + (filtro === c.id ? "activo" : "")}
+              onClick={() => setFiltro(c.id)}>
+              {c.texto}<span className="chip-num">{cuenta(c.id)}</span>
+            </button>
+          ))}
+          {filtro !== "todos" && (
+            <span className="cell-sub">
+              Mostrando {list.length} de {active.length}
+            </span>
+          )}
+        </div>
+
         <div className="manage-list">
           {list.map((v) => {
             const a = AVAIL[v.availability] ?? AVAIL.available;
@@ -165,6 +224,12 @@ export default function VehiclesClient({ rows, opsBy, roundLabel }: { rows: Vehi
                 {v.availability === "issues" && <div className="cell-sub" style={{ color: "var(--orange)" }}>{v.open_issue_count} novedad(es) sin resolver</div>}
                 {opsBy[v.id] ? <div className="cell-sub" style={{ color: "var(--orange)", fontWeight: 600 }}>{opsBy[v.id]} operación(es) abierta(s) sin registrar regreso</div> : null}
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {/* Primero la pregunta que se hace de verdad al ver una unidad
+                      retenida: por qué, desde cuándo y con qué evidencia. */}
+                  <button className={"btn btn-sm " + (v.open_issue_count > 0 ? "btn-primary" : "btn-ghost")}
+                    onClick={() => setFicha(v)}>
+                    {v.open_issue_count > 0 ? `Ver ${v.open_issue_count} novedad(es)` : "Vista rápida"}
+                  </button>
                   <button className="btn btn-ghost btn-sm" onClick={() => setEdit(v)}>Datos del vehículo</button>
                   {v.availability === "out_of_service"
                     ? <button className="btn btn-primary btn-sm" disabled={busy === v.id} onClick={() => reactivate(v)}>Reactivar</button>
@@ -177,7 +242,13 @@ export default function VehiclesClient({ rows, opsBy, roundLabel }: { rows: Vehi
               </div>
             );
           })}
-          {list.length === 0 && <div className="empty-state">No hay vehículos que coincidan.</div>}
+          {list.length === 0 && (
+            <div className="empty-state">
+              {filtro === "todos"
+                ? "No hay vehículos que coincidan con la búsqueda."
+                : `Ningún vehículo en «${CHIPS.find((c) => c.id === filtro)?.texto}»${q ? " con esa placa" : ""}.`}
+            </div>
+          )}
         </div>
       </div>
 
@@ -198,6 +269,7 @@ export default function VehiclesClient({ rows, opsBy, roundLabel }: { rows: Vehi
         </div>
       )}
 
+      {ficha && <VehicleSheet vehicleId={ficha.id} plate={ficha.plate} onClose={() => setFicha(null)} />}
       {(edit || creating) && <VehicleForm vehicle={edit} onClose={() => { setEdit(null); setCreating(false); }} onSaved={(m) => { show(m); router.refresh(); }} />}
       <div className={"toast" + (toast ? " show" : "")}>{toast}</div>
     </>

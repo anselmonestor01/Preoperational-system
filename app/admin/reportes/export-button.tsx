@@ -1,8 +1,14 @@
 "use client";
 
 // Exportación del reporte filtrado a CSV (con BOM, para abrir bien en Excel).
+//
+// Exporta LO QUE SE ESTÁ VIENDO: si la pestaña activa es el resumen por
+// conductor, baja ese resumen y no la tabla de detalle. Un botón que siempre
+// exporta lo mismo obliga a rehacer el agrupado a mano en la hoja de cálculo.
 
-export default function ExportButton({ rows }: { rows: Record<string, unknown>[] }) {
+export default function ExportButton({ rows, nombre = "reporte" }: {
+  rows: Record<string, unknown>[]; nombre?: string;
+}) {
   function exportCsv() {
     if (!rows.length) return;
     const headers = Object.keys(rows[0]);
@@ -15,9 +21,13 @@ export default function ExportButton({ rows }: { rows: Record<string, unknown>[]
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `reporte-preoperacional-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `${nombre}-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   }
-  return <button type="button" className="btn btn-ghost btn-sm" onClick={exportCsv} disabled={!rows.length}>Exportar CSV</button>;
+  return (
+    <button type="button" className="btn btn-ghost btn-sm" onClick={exportCsv} disabled={!rows.length}>
+      Exportar CSV ({rows.length})
+    </button>
+  );
 }

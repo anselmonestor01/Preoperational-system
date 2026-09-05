@@ -1,12 +1,18 @@
 "use client";
 
 // Detalle de una inspección y acciones de supervisión (anular, liberar,
-// sobrescribir veredicto). Cada acción pasa por un RPC que revalida permisos.
+// sobrescribir veredicto, cerrar operación). Cada acción pasa por un RPC que
+// revalida permisos.
+//
+// El detalle abre encabezado por el MOTIVO: qué pasó con esta salida y por qué.
+// Antes había que deducirlo cruzando tres insignias sueltas.
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { fmtDateTime, fmtKm } from "@/lib/format";
+import { motivoDe } from "@/lib/motivos";
+import { horasDesde, antiguedad } from "@/lib/urgencia";
 import { friendlyError } from "@/lib/errors";
 import { useDialog } from "@/components/ui/dialogs";
 import EvidenceGallery from "@/components/EvidenceGallery";
@@ -34,9 +40,11 @@ export default function InspectionActions({ id }: { id: string }) {
   async function load() {
     setOpen(true);
     const [{ data: insp }, { data: ans }, { data: iss }] = await Promise.all([
-      supabase.from("inspections").select("*").eq("id", id).maybeSingle(),
+      supabase.from("inspections").select("*,rounds(label,round_number,responsible)").eq("id", id).maybeSingle(),
       supabase.from("inspection_answers").select("*").eq("inspection_id", id).order("severity"),
-      supabase.from("issues").select("*").eq("inspection_id", id),
+      // `profiles` da el nombre de quien cerró la novedad: sin eso, «resuelta»
+      // no dice quién se hizo responsable.
+      supabase.from("issues").select("*,profiles:resolved_by(full_name)").eq("inspection_id", id),
     ]);
     setDetail(insp); setAnswers(ans ?? []); setIssues(iss ?? []);
     const { data: evs } = await supabase.from("issue_evidence").select("issue_id,storage_path").eq("inspection_id", id);
@@ -157,12 +165,29 @@ export default function InspectionActions({ id }: { id: string }) {
               <button className="sheet-close" onClick={() => setOpen(false)}>✕</button>
             </div>
             {!detail ? <div className="spinner" /> : (<>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
-                {detail.status === "voided" ? <span className="badge neutral">Anulada</span>
-                  : detail.authorized === false ? <span className="result-pill bad">NO AUTORIZADO</span>
-                    : <span className="result-pill ok">AUTORIZADO</span>}
-                <span className={"result-pill " + (detail.result === "bueno" ? "ok" : detail.result === "regular" ? "warn" : "bad")}>{detail.result}</span>
-              </div>
+              {(() => {
+                const abiertas = issues.filter((i) => i.status !== "resolved").length;
+                const m = motivoDe({ ...detail, novedades_abiertas: abiertas, novedades_total: issues.length });
+                return (
+                  <div className={"issue-card urgencia-" + (m.tono === "bad" ? "urgente" : m.tono === "warn" ? "atencion" : "reciente")}
+                    style={{ marginBottom: 14 }}>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                      <span className={"badge " + m.tono} style={{ fontSize: 12.5 }}>{m.titulo}</span>
+                      <span className={"result-pill " + (detail.result === "bueno" ? "ok" : detail.result === "regular" ? "warn" : "bad")}>{detail.result}</span>
+                      {detail.operation_status === "open" && (
+                        <span className="badge info">En ruta {antiguedad(horasDesde(detail.submitted_at))}</span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 13.5, marginTop: 6 }}>{m.detalle}</div>
+                    <div className="cell-sub" style={{ marginTop: 6 }}>
+                      {detail.rounds?.label
+                        ? `Ronda ${detail.rounds.label} (#${detail.rounds.round_number})${detail.rounds.responsible ? ` · responsable ${detail.rounds.responsible}` : ""}`
+                        : "Sin ronda asociada"}
+                      {detail.device_label ? ` · registrada desde ${detail.device_label}` : ""}
+                    </div>
+                  </div>
+                );
+              })()}
 
               <div className="summary-card">
                 <div className="summary-row"><span className="cell-sub">Km inicial</span><span>{fmtKm(detail.km_inicial)}</span></div>
@@ -191,7 +216,20 @@ export default function InspectionActions({ id }: { id: string }) {
                       <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
                         <b>{i.item_name}</b>{sevBadge(i.severity)}
                       </div>
-                      <div style={{ fontSize: 13, margin: "4px 0 8px" }}>{i.description || "Sin detalle"}</div>
+                      <div style={{ fontSize: 13, margin: "4px 0 6px" }}>{i.description || "Sin detalle"}</div>
+                      <div className="cell-sub" style={{ marginBottom: 8 }}>
+                        {i.status === "resolved" ? (
+                          <span style={{ color: "var(--green)" }}>
+                            Resuelta{i.profiles?.full_name ? ` por ${i.profiles.full_name}` : ""}
+                            {i.resolved_at ? ` · ${fmtDateTime(i.resolved_at)}` : ""}
+                            {i.resolution_note ? ` — ${i.resolution_note}` : ""}
+                          </span>
+                        ) : (
+                          <span style={{ color: "var(--orange)" }}>
+                            Sin resolver · abierta {antiguedad(horasDesde(i.created_at))}
+                          </span>
+                        )}
+                      </div>
                       <EvidenceGallery urls={eviByIssue[i.id] ?? []} size={72} empty="Sin evidencia" />
                     </div>
                   ))}

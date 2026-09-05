@@ -631,6 +631,10 @@ body.admin-mode #driverShell{display:none !important;}
   .panel{ overflow:hidden; }
   .hamburger{ display:flex !important; }
   .at-actions .btn{ display:none; }
+  /* En móvil la cabecera no tiene sitio para el buscador ni para la fecha: el
+     menú lateral sigue llevando a todos los módulos. */
+  .at-actions .buscador{ display:none; }
+  .at-actions .date-chip{ display:none; }
 }
 
 
@@ -2259,4 +2263,143 @@ input::placeholder, textarea::placeholder{ color:var(--muted); opacity:1; }
 .org-switcher-rol{ font-size:10.5px; color:var(--muted); text-transform:capitalize; }
 .org-switcher-error{
   padding:8px 10px; font-size:11.5px; color:var(--red); line-height:1.4;
+}
+
+/* =========================================================
+   ESCALA — lo que hace falta cuando la flota pasa de siete
+   unidades a setenta y siete.
+   ========================================================= */
+
+/* --- Filtros rápidos ------------------------------------------------------
+   Con setenta vehículos, escribir la placa deja de ser la vía principal: casi
+   siempre lo que se busca es un GRUPO («los bloqueados», «los de hoy»), no una
+   unidad concreta. Estos chips sustituyen esa búsqueda por un clic, y llevan el
+   recuento encima para que se vea el tamaño del grupo antes de entrar. */
+.filtros-rapidos{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.chip-filtro{
+  display:inline-flex; align-items:center; gap:7px;
+  padding:7px 13px; border-radius:100px; cursor:pointer;
+  border:1.5px solid var(--line); background:var(--paper);
+  font-family:inherit; font-size:12.5px; font-weight:700; color:var(--navy-70);
+  transition:background .14s, border-color .14s, color .14s;
+}
+.chip-filtro:hover{ border-color:var(--blue); color:var(--blue); }
+.chip-filtro .chip-num{
+  font-family:var(--font-display), system-ui, sans-serif;
+  font-size:12px; font-weight:800;
+  background:var(--line-soft); color:var(--navy-70);
+  padding:1px 7px; border-radius:100px; min-width:20px; text-align:center;
+}
+.chip-filtro.activo{ background:var(--blue); border-color:var(--blue); color:#fff; }
+.chip-filtro.activo .chip-num{ background:rgba(255,255,255,.24); color:#fff; }
+.chip-filtro.tono-ok.activo{ background:var(--green); border-color:var(--green); }
+.chip-filtro.tono-warn.activo{ background:var(--orange); border-color:var(--orange); }
+.chip-filtro.tono-bad.activo{ background:var(--red); border-color:var(--red); }
+
+/* --- Pestañas ------------------------------------------------------------- */
+.pestanas{ display:flex; gap:4px; border-bottom:1.5px solid var(--line); margin-bottom:16px; flex-wrap:wrap; }
+.pestana{
+  padding:9px 15px; border:none; background:none; cursor:pointer;
+  font-family:inherit; font-size:13px; font-weight:700; color:var(--muted);
+  border-bottom:2.5px solid transparent; margin-bottom:-1.5px;
+  text-decoration:none; display:inline-block;
+}
+.pestana:hover{ color:var(--navy); }
+.pestana.activa{ color:var(--blue); border-bottom-color:var(--blue); }
+
+/* --- Grupos plegables por ronda ------------------------------------------
+   Una tabla plana de cuatrocientas inspecciones no se lee: se recorre. Al
+   agruparlas por ronda, la unidad de lectura pasa a ser el turno, que es como
+   piensa un jefe de flota. El resumen vive en la cabecera para no tener que
+   abrir el grupo sólo para saber si vale la pena abrirlo. */
+.grupo-ronda{
+  border:1.5px solid var(--line); border-radius:var(--radius-md);
+  margin-bottom:10px; background:var(--paper); overflow:hidden;
+}
+.grupo-ronda[open]{ border-color:var(--blue-soft-2); box-shadow:var(--shadow-sm); }
+.grupo-ronda > summary{
+  list-style:none; cursor:pointer; padding:13px 16px;
+  display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+}
+.grupo-ronda > summary::-webkit-details-marker{ display:none; }
+.grupo-ronda > summary:hover{ background:var(--bg); }
+.grupo-ronda[open] > summary{ border-bottom:1.5px solid var(--line-soft); background:var(--bg); }
+.grupo-flecha{ color:var(--muted); font-size:11px; transition:transform .16s; flex-shrink:0; }
+.grupo-ronda[open] .grupo-flecha{ transform:rotate(90deg); }
+.grupo-titulo{ font-weight:800; font-size:14px; color:var(--navy); }
+.grupo-meta{ font-size:11.5px; color:var(--muted); }
+.grupo-cifras{ display:flex; gap:6px; margin-left:auto; flex-wrap:wrap; }
+.grupo-cuerpo{ padding:4px 16px 14px; }
+
+/* --- Urgencia -------------------------------------------------------------
+   El color es la señal, pero no la única: la barra lateral y la antigüedad en
+   texto sobreviven a una impresión en blanco y negro y a un daltonismo. */
+.urgencia-reciente{ border-left:3px solid var(--line); }
+.urgencia-atencion{ border-left:3px solid var(--orange); }
+.urgencia-urgente{ border-left:3px solid var(--red); }
+.urgencia-critico{ border-left:3px solid var(--red); background:var(--red-soft); }
+
+/* --- Alertas priorizadas -------------------------------------------------- */
+.alerta-fila{
+  display:flex; align-items:center; gap:11px; padding:11px 13px;
+  border-radius:var(--radius-sm); border:1.5px solid var(--line);
+  margin-bottom:7px; background:var(--paper);
+  width:100%; text-align:left; font-family:inherit; cursor:pointer;
+  transition:border-color .14s, box-shadow .14s;
+}
+.alerta-fila:hover{ border-color:var(--blue); box-shadow:var(--shadow-sm); }
+.alerta-fila.nivel-critico{ border-color:#EFB8B4; background:var(--red-soft); }
+.alerta-fila.nivel-urgente{ border-color:#EFB8B4; }
+.alerta-fila.nivel-atencion{ border-color:#EBD3AC; }
+.alerta-cuerpo{ flex:1; min-width:0; }
+.alerta-titulo{ font-weight:700; font-size:13px; color:var(--navy); }
+.alerta-sub{ font-size:11.5px; color:var(--muted); margin-top:2px; }
+.alerta-placa{
+  font-family:var(--font-display), system-ui, sans-serif;
+  font-weight:800; font-size:13px; letter-spacing:.4px;
+  background:var(--navy); color:#fff; padding:4px 9px; border-radius:6px; flex-shrink:0;
+}
+
+/* --- Fichas clicables ----------------------------------------------------- */
+.chip-placa-btn{
+  border:1.5px solid var(--line); background:var(--paper); cursor:pointer;
+  font-family:var(--font-display), system-ui, sans-serif; font-weight:700;
+  font-size:12.5px; letter-spacing:.3px; color:var(--navy);
+  padding:6px 12px; border-radius:100px;
+  display:inline-flex; align-items:center; gap:7px;
+  transition:border-color .14s, background .14s;
+}
+.chip-placa-btn:hover{ border-color:var(--blue); background:var(--blue-soft); color:var(--blue); }
+.chip-placa-btn.tono-bad{ background:var(--red-soft); color:var(--red); border-color:rgba(198,66,60,.2); }
+.chip-placa-btn.tono-bad:hover{ border-color:var(--red); }
+.chip-placa-btn.tono-warn{ background:var(--orange-soft); color:var(--orange); border-color:rgba(201,122,26,.2); }
+.chip-placa-btn.tono-warn:hover{ border-color:var(--orange); }
+.chip-placa-btn.tono-ok{ background:var(--green-soft); color:var(--green); border-color:rgba(30,142,90,.2); }
+.chip-placa-btn .chip-nota{ font-weight:600; font-size:11px; opacity:.8; font-family:var(--font-sans), system-ui, sans-serif; }
+
+/* --- Medidor de dos lados (en operación / disponibles) -------------------- */
+.medidor{ display:flex; height:10px; border-radius:100px; overflow:hidden; background:var(--line-soft); margin:10px 0 8px; }
+.medidor-parte{ height:100%; }
+
+/* --- Buscador con sugerencias --------------------------------------------
+   Con más de cincuenta conductores, un campo de texto exige recordar el nombre
+   exacto. Las sugerencias convierten «me suena que era Rodríguez» en un clic. */
+.buscador{ position:relative; }
+.sugerencias{
+  position:absolute; z-index:60; top:calc(100% + 4px); left:0; right:0;
+  background:var(--paper); border:1.5px solid var(--line); border-radius:var(--radius-sm);
+  box-shadow:var(--shadow-md); max-height:260px; overflow-y:auto; padding:4px;
+}
+.sugerencia{
+  display:flex; align-items:center; gap:9px; width:100%;
+  padding:8px 9px; border:none; background:none; cursor:pointer;
+  font-family:inherit; font-size:13px; color:var(--navy); text-align:left; border-radius:7px;
+}
+.sugerencia:hover, .sugerencia.marcada{ background:var(--blue-soft); }
+.sugerencia-sub{ font-size:11px; color:var(--muted); margin-left:auto; }
+
+/* --- Paginación ----------------------------------------------------------- */
+.paginacion{
+  display:flex; justify-content:space-between; align-items:center;
+  gap:10px; margin-top:14px; flex-wrap:wrap;
 }

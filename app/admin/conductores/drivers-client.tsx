@@ -2,11 +2,20 @@
 
 // Gestión de conductores: alta con PIN, foto de perfil y baja. El PIN se guarda
 // cifrado y sólo un administrador puede revelarlo mediante un RPC auditado.
+//
+// A ESCALA
+// Con más de cincuenta conductores hacían falta tres cosas. Primero, ESTADO
+// OPERATIVO: quién está fuera, quién ya cumplió su turno y quién puede salir,
+// con la explicación delante para que nadie tenga que adivinar por qué el
+// sistema bloquea a alguien. Segundo, un BUSCADOR CON SUGERENCIAS, porque un
+// campo de texto a secas exige recordar el nombre exacto. Y tercero,
+// PAGINACIÓN: mil filas en una sola lista no se navegan, se sufren.
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { initials } from "@/lib/format";
+import { initials, fmtDateTime } from "@/lib/format";
+import { horasDesde, antiguedad } from "@/lib/urgencia";
 import { friendlyError } from "@/lib/errors";
 import { compressImage, AVATAR_PRESET } from "@/lib/image";
 import { useDialog } from "@/components/ui/dialogs";
@@ -18,7 +27,18 @@ export interface DriverRow {
   photo_path: string | null; active: boolean;
 }
 
-export default function DriversClient({ rows, photoMap, orgId }: { rows: DriverRow[]; photoMap: Record<string, string>; orgId: string }) {
+type EnRuta = Record<string, { placa: string; desde: string | null }>;
+type YaOperaron = Record<string, { placa: string; autorizada: boolean | null }>;
+type Filtro = "todos" | "disponibles" | "operacion" | "operaron" | "inactivos";
+
+const POR_PAGINA = 20;
+
+export default function DriversClient({
+  rows, photoMap, orgId, enRuta, yaOperaron, rondaLabel,
+}: {
+  rows: DriverRow[]; photoMap: Record<string, string>; orgId: string;
+  enRuta: EnRuta; yaOperaron: YaOperaron; rondaLabel: string | null;
+}) {
   const supabase = createClient();
   const router = useRouter();
   const dialog = useDialog();
@@ -33,8 +53,56 @@ export default function DriversClient({ rows, photoMap, orgId }: { rows: DriverR
   // Foto elegida pendiente de encuadrar. Se sube sólo tras confirmar el recorte.
   const [recorte, setRecorte] = useState<{ driver: DriverRow; archivo: File } | null>(null);
 
+  const [filtro, setFiltro] = useState<Filtro>("todos");
+  const [pagina, setPagina] = useState(1);
+  const [sugiriendo, setSugiriendo] = useState(false);
+
   const show = (m: string) => { setToast(m); setTimeout(() => setToast(""), 2800); };
-  const list = rows.filter((d) => d.full_name.toLowerCase().includes(q.toLowerCase()));
+
+  /** El estado operativo de un conductor, tal y como lo aplica la base. */
+  function estadoDe(d: DriverRow) {
+    if (!d.active) return "inactivos" as const;
+    if (enRuta[d.id]) return "operacion" as const;
+    if (yaOperaron[d.id]) return "operaron" as const;
+    return "disponibles" as const;
+  }
+
+  const grupos: Record<Filtro, (d: DriverRow) => boolean> = {
+    todos: () => true,
+    disponibles: (d) => estadoDe(d) === "disponibles",
+    operacion: (d) => estadoDe(d) === "operacion",
+    operaron: (d) => estadoDe(d) === "operaron",
+    inactivos: (d) => !d.active,
+  };
+  const cuenta = (f: Filtro) => rows.filter(grupos[f]).length;
+
+  const CHIPS: { id: Filtro; texto: string; tono?: string }[] = [
+    { id: "todos", texto: "Toda la plantilla" },
+    { id: "disponibles", texto: "Disponibles", tono: "ok" },
+    { id: "operacion", texto: "En operación" },
+    { id: "operaron", texto: "Ya operaron" , tono: "warn" },
+    { id: "inactivos", texto: "Inactivos" },
+  ];
+
+  const filtrados = useMemo(
+    () => rows.filter(grupos[filtro]).filter((d) => d.full_name.toLowerCase().includes(q.toLowerCase())),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rows, filtro, q, enRuta, yaOperaron]);
+
+  /** Sugerencias mientras se escribe: convierte «me suena que era Rodríguez»
+   *  en un clic, en vez de exigir el nombre exacto. */
+  const sugerencias = useMemo(() => {
+    const t = q.trim().toLowerCase();
+    if (t.length < 2) return [];
+    return rows.filter((d) => d.full_name.toLowerCase().includes(t)).slice(0, 8);
+  }, [rows, q]);
+
+  const totalPaginas = Math.max(1, Math.ceil(filtrados.length / POR_PAGINA));
+  const paginaSegura = Math.min(pagina, totalPaginas);
+  const list = filtrados.slice((paginaSegura - 1) * POR_PAGINA, paginaSegura * POR_PAGINA);
+
+  function cambiarFiltro(f: Filtro) { setFiltro(f); setPagina(1); }
+  function cambiarBusqueda(v: string) { setQ(v); setPagina(1); setSugiriendo(true); }
 
   async function reveal(d: DriverRow) {
     if (revealed[d.id]) { setRevealed((r) => { const n = { ...r }; delete n[d.id]; return n; }); return; }
@@ -106,11 +174,54 @@ export default function DriversClient({ rows, photoMap, orgId }: { rows: DriverR
       <div className="panel">
         <div className="panel-head">
           <div><div className="panel-title">Conductores habilitados</div>
-            <div className="panel-sub">{rows.length} conductor(es) — cada uno confirma su identidad con su PIN. Los inactivos conservan su historial.</div></div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <input className="manage-input" placeholder="Buscar…" value={q} onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 180 }} />
+            <div className="panel-sub">
+              {rows.length} conductor(es) — cada uno confirma su identidad con su PIN.
+              {rondaLabel ? ` Ronda vigente: ${rondaLabel}.` : " Sin ronda abierta."}
+            </div></div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-start" }}>
+            <div className="buscador" style={{ width: 200 }}>
+              <input className="manage-input" placeholder="Buscar por nombre…" value={q}
+                style={{ width: "100%" }}
+                onChange={(e) => cambiarBusqueda(e.target.value)}
+                onFocus={() => setSugiriendo(true)}
+                onBlur={() => setTimeout(() => setSugiriendo(false), 140)} />
+              {sugiriendo && sugerencias.length > 0 && q.trim().length >= 2 && (
+                <div className="sugerencias">
+                  {sugerencias.map((d) => {
+                    const e = estadoDe(d);
+                    return (
+                      <button key={d.id} className="sugerencia"
+                        onMouseDown={(ev) => { ev.preventDefault(); setQ(d.full_name); setSugiriendo(false); setPagina(1); }}>
+                        <span className="manage-avatar" style={{ width: 26, height: 26, padding: 0, fontSize: 10 }}>
+                          {initials(d.full_name)}
+                        </span>
+                        <span>{d.full_name}</span>
+                        <span className="sugerencia-sub">
+                          {e === "operacion" ? "en ruta" : e === "operaron" ? "ya operó" : e === "inactivos" ? "inactivo" : "disponible"}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
             <button className="btn btn-primary btn-sm" onClick={() => setCreating(true)}>Nuevo conductor</button>
           </div>
+        </div>
+
+        <div className="filtros-rapidos" style={{ marginBottom: 8 }}>
+          {CHIPS.map((c) => (
+            <button key={c.id}
+              className={"chip-filtro " + (c.tono ? "tono-" + c.tono + " " : "") + (filtro === c.id ? "activo" : "")}
+              onClick={() => cambiarFiltro(c.id)}>
+              {c.texto}<span className="chip-num">{cuenta(c.id)}</span>
+            </button>
+          ))}
+        </div>
+        <div className="cell-sub" style={{ marginBottom: 14 }}>
+          Quien está <b>en operación</b> tiene un vehículo fuera sin registrar el regreso, y quien
+          <b> ya operó</b> cumplió su turno en la ronda vigente. Ninguno de los dos puede iniciar
+          otra inspección: la regla la impone la base de datos, aquí sólo se muestra.
         </div>
 
         <div className="manage-list">
@@ -124,7 +235,10 @@ export default function DriversClient({ rows, photoMap, orgId }: { rows: DriverR
                       {photo ? <img src={photo} alt="" className="drv-photo" /> : initials(d.full_name)}
                     </span>
                     <span>{d.full_name}</span>
-                    {d.active ? <span className="badge ok" style={{ marginLeft: 6 }}>Activo</span> : <span className="badge bad" style={{ marginLeft: 6 }}>Inactivo</span>}
+                    {!d.active ? <span className="badge bad" style={{ marginLeft: 6 }}>Inactivo</span>
+                      : enRuta[d.id] ? <span className="badge info" style={{ marginLeft: 6 }}>En operación</span>
+                      : yaOperaron[d.id] ? <span className="badge warn" style={{ marginLeft: 6 }}>Ya operó</span>
+                      : <span className="badge ok" style={{ marginLeft: 6 }}>Disponible</span>}
                     <span className="badge info" style={{ marginLeft: 6, fontFamily: "monospace", letterSpacing: 1 }}>
                       PIN {revealed[d.id] ?? "••••"}
                     </span>
@@ -135,6 +249,20 @@ export default function DriversClient({ rows, photoMap, orgId }: { rows: DriverR
                     <button className="manage-remove" title="Eliminar definitivamente" onClick={() => del(d, "hard")}>✕</button>
                   </div>
                 </div>
+                {enRuta[d.id] && (
+                  <div className="cell-sub" style={{ color: "var(--blue)" }}>
+                    Salió con <b>{enRuta[d.id].placa}</b> {antiguedad(horasDesde(enRuta[d.id].desde))}
+                    {enRuta[d.id].desde ? ` (${fmtDateTime(enRuta[d.id].desde)})` : ""} y no ha
+                    registrado el regreso. No puede iniciar otra inspección hasta cerrarla.
+                  </div>
+                )}
+                {!enRuta[d.id] && yaOperaron[d.id] && (
+                  <div className="cell-sub" style={{ color: "var(--orange)" }}>
+                    Ya cumplió su turno en esta ronda con <b>{yaOperaron[d.id].placa}</b>
+                    {yaOperaron[d.id].autorizada === false ? " (no autorizada)" : ""}.
+                    Podrá volver a operar cuando se abra la ronda siguiente.
+                  </div>
+                )}
                 <div className="cell-sub">Licencia N.º: {d.license ? d.license : <span style={{ color: "var(--orange)" }}>sin registrar</span>}</div>
                 <div className="cell-sub">WhatsApp: {d.whatsapp ? d.whatsapp : <span style={{ color: "var(--orange)" }}>sin registrar</span>}</div>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -148,8 +276,28 @@ export default function DriversClient({ rows, photoMap, orgId }: { rows: DriverR
               </div>
             );
           })}
-          {list.length === 0 && <div className="empty-state">No hay conductores que coincidan.</div>}
+          {list.length === 0 && (
+            <div className="empty-state">
+              {filtro === "todos" && !q
+                ? "Todavía no hay conductores registrados."
+                : `Ningún conductor coincide${q ? ` con «${q}»` : ""}${filtro !== "todos" ? ` en «${CHIPS.find((c) => c.id === filtro)?.texto}»` : ""}.`}
+            </div>
+          )}
         </div>
+
+        {totalPaginas > 1 && (
+          <div className="paginacion">
+            <div className="cell-sub">
+              {filtrados.length} conductor(es) · página {paginaSegura} de {totalPaginas}
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button className="btn btn-ghost btn-sm" disabled={paginaSegura <= 1}
+                onClick={() => setPagina(paginaSegura - 1)}>← Anterior</button>
+              <button className="btn btn-ghost btn-sm" disabled={paginaSegura >= totalPaginas}
+                onClick={() => setPagina(paginaSegura + 1)}>Siguiente →</button>
+            </div>
+          </div>
+        )}
       </div>
 
       {(edit || creating) && <DriverForm driver={edit} onClose={() => { setEdit(null); setCreating(false); }} onSaved={(m) => { show(m); router.refresh(); }} />}
