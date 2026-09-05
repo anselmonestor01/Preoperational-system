@@ -22,6 +22,13 @@ export default function InspectionActions({ id }: { id: string }) {
   const [eviByIssue, setEviByIssue] = useState<Record<string, string[]>>({});
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState("");
+  // Cierre supervisado de una operación que no cumple la permanencia mínima:
+  // un movimiento de patio de dos minutos, o un conductor que se marchó sin
+  // registrar el regreso. Con motivo obligatorio y rastro en la auditoría.
+  const [cerrando, setCerrando] = useState(false);
+  const [kmCierre, setKmCierre] = useState("");
+  const [fuelCierre, setFuelCierre] = useState("lleno");
+  const [motivoCierre, setMotivoCierre] = useState("");
   const show = (m: string) => { setToast(m); setTimeout(() => setToast(""), 2800); };
 
   async function load() {
@@ -120,6 +127,22 @@ export default function InspectionActions({ id }: { id: string }) {
     show("Vehículo liberado"); setOpen(false); router.refresh();
   }
 
+  async function doForceClose() {
+    if (motivoCierre.trim().length < 5) return show("Indica el motivo del cierre manual (mínimo 5 caracteres).");
+    setBusy(true);
+    const { data, error } = await supabase.rpc("force_close_operation", {
+      p_inspection_id: id,
+      p_km_final: kmCierre ? Number(kmCierre) : null,
+      p_fuel_out: fuelCierre,
+      p_reason: motivoCierre,
+    });
+    setBusy(false);
+    if (error) return show(friendlyError(error, "No fue posible cerrar la operación."));
+    show(data?.vehiculo_liberado ? "Operación cerrada. El vehículo queda disponible." : "Operación cerrada. El vehículo sigue con novedades pendientes.");
+    setCerrando(false); setMotivoCierre(""); setKmCierre("");
+    setOpen(false); router.refresh();
+  }
+
   const sevBadge = (s: string) => <span className={"badge " + (s === "bad" ? "bad" : s === "warn" ? "warn" : "ok")}>{s === "bad" ? "Malo" : s === "warn" ? "Regular" : "Bueno"}</span>;
 
   return (
@@ -190,6 +213,46 @@ export default function InspectionActions({ id }: { id: string }) {
                 {detail.status !== "voided" && <button className="btn btn-ghost btn-sm" disabled={busy} onClick={doRelease}>Liberar vehículo</button>}
                 {detail.status !== "voided" && <button className="btn btn-danger btn-sm" disabled={busy} onClick={doVoid}>Anular</button>}
               </div>
+              {detail.operation_status === "open" && (
+                <div style={{ marginTop: 18, paddingTop: 14, borderTop: "1px solid var(--line-soft)" }}>
+                  <div className="cell-sub" style={{ marginBottom: 8 }}>
+                    <b>Operación en ruta.</b> El regreso lo registra el conductor desde el kiosco
+                    con su PIN. Ciérrala aquí sólo si eso no es posible: un movimiento de patio
+                    más corto que la permanencia mínima, o un conductor que se fue sin registrarlo.
+                  </div>
+                  {!cerrando ? (
+                    <button className="btn btn-ghost btn-sm" disabled={busy} onClick={() => setCerrando(true)}>
+                      Cerrar operación manualmente
+                    </button>
+                  ) : (
+                    <div className="summary-card">
+                      <div className="field-label" style={{ marginTop: 0 }}>Kilometraje final</div>
+                      <input className="manage-input" style={{ width: "100%" }} inputMode="numeric" value={kmCierre}
+                        onChange={(e) => setKmCierre(e.target.value.replace(/\D/g, "").slice(0, 7))}
+                        placeholder={detail.km_inicial != null ? `Mínimo ${detail.km_inicial}` : "Km al regresar"} />
+
+                      <div className="field-label">Combustible al regresar</div>
+                      <select className="manage-input" style={{ width: "100%" }} value={fuelCierre}
+                        onChange={(e) => setFuelCierre(e.target.value)}>
+                        <option value="lleno">Lleno</option>
+                        <option value="medio">Medio</option>
+                        <option value="bajo">Bajo</option>
+                      </select>
+
+                      <div className="field-label">Motivo del cierre manual</div>
+                      <textarea className="manage-input" style={{ width: "100%", minHeight: 62 }} value={motivoCierre}
+                        onChange={(e) => setMotivoCierre(e.target.value.slice(0, 300))}
+                        placeholder="Queda registrado en la auditoría con tu nombre" />
+
+                      <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                        <button className="btn btn-primary btn-sm" disabled={busy} onClick={doForceClose}>Cerrar operación</button>
+                        <button className="btn btn-ghost btn-sm" disabled={busy} onClick={() => setCerrando(false)}>Cancelar</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div style={{ marginTop: 18, paddingTop: 14, borderTop: "1px solid var(--line-soft)" }}>
                 <div className="cell-sub" style={{ marginBottom: 8 }}>
                   <b>Depurar historial.</b> Anular conserva el registro; eliminar lo borra por completo.

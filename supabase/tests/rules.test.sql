@@ -28,6 +28,8 @@
 
 begin;
 
+create temp table resumen(pruebas int, detalle text);
+
 do $$
 declare
   v_org uuid; v_admin uuid; v_drv uuid; v_round uuid;
@@ -61,6 +63,20 @@ begin
     values (v_org,'Conductor QA', extensions.crypt('9999', extensions.gen_salt('bf')), v_admin)
     returning id into v_drv;
 
+  -- PRUEBA DE IDENTIDAD (migración 0027). Desde esa migración, abrir o cerrar
+  -- una operación exige una reserva viva del perfil para ESE dispositivo: el
+  -- PIN dejó de ser un paso de la interfaz y pasó a ser un requisito del
+  -- servidor. Aquí se crea a mano para no repetir `claim_driver` en cada regla.
+  insert into public.driver_claims(driver_id, organization_id, device_id, device_label, claimed_at, expires_at)
+    values (v_drv, v_org, 'disp-qa', 'Tablet QA', now(), now() + interval '1 hour');
+
+  -- PERMANENCIA MÍNIMA (migración 0027): en producción una operación no puede
+  -- cerrarse a los pocos segundos de abrirse. Aquí se desactiva a propósito,
+  -- porque lo que estas reglas comprueban no es la permanencia sino el
+  -- kilometraje, la idempotencia y los bloqueos. La permanencia tiene su propia
+  -- suite en `ciclo_operacion.test.sql`.
+  update public.organizations set min_operacion_segundos = 0 where id = v_org;
+
   select id into v_crit from public.checklist_items
     where organization_id=v_org and is_safety_critical and active and name='Frenos' limit 1;
   select id into v_norm from public.checklist_items
@@ -82,7 +98,7 @@ begin
   v_res := public.submit_inspection(v_vA, v_drv,
     jsonb_build_array(jsonb_build_object('category_key','mecanico','item_id',v_crit::text,
       'item_name','Frenos','item_type','estado','value','malo')),
-    10000,'lleno','QA','qa-critico-1');
+    10000,'lleno','QA','qa-critico-1','disp-qa');
 
   if (v_res->>'authorized')::boolean is not false then
     raise exception 'FALLO 1: frenos en mal estado NO bloquearon la salida: %', v_res;
@@ -95,10 +111,13 @@ begin
   -- =====================================================================
   -- REGLA 2 — Todo en buen estado AUTORIZA la salida.
   -- =====================================================================
+  -- El PIN vuelve a demostrar la identidad: la reserva se retira al cerrar una
+  -- operación y al rechazarse una inspección, igual que en el kiosco real.
+  perform public.claim_driver(v_drv,'9999','disp-qa','Tablet QA');
   v_res := public.submit_inspection(v_vB, v_drv,
     jsonb_build_array(jsonb_build_object('category_key','mecanico','item_id',v_crit::text,
       'item_name','Frenos','item_type','estado','value','bueno')),
-    10000,'lleno','QA','qa-bueno-1');
+    10000,'lleno','QA','qa-bueno-1','disp-qa');
   if (v_res->>'authorized')::boolean is not true then
     raise exception 'FALLO 2: sin hallazgos NO autorizó: %', v_res;
   end if;
@@ -109,7 +128,7 @@ begin
   -- REGLA 3 — El kilometraje de regreso no puede ser MENOR que el de salida.
   -- =====================================================================
   begin
-    perform public.register_return(v_insp, 5000, 'medio');   -- salió con 10.000
+    perform public.register_return(v_insp, 5000, 'medio', 'disp-qa');   -- salió con 10.000
     raise exception 'FALLO 3: aceptó un kilometraje de regreso menor al de salida';
   exception when others then
     get stacked diagnostics v_err = message_text;
@@ -120,7 +139,7 @@ begin
   end;
   v_p := v_p+1; v_log := v_log || '3:KM ';
 
-  v_res := public.register_return(v_insp, 10250, 'medio');
+  v_res := public.register_return(v_insp, 10250, 'medio', 'disp-qa');
   if (v_res->>'recorrido')::int <> 250 then
     raise exception 'FALLO 3b: el recorrido debería ser 250, fue %', v_res->>'recorrido';
   end if;
@@ -130,12 +149,15 @@ begin
   -- REGLA 4 — Idempotencia: reenviar la MISMA inspección no la duplica.
   --           Es lo que hace seguro el modo sin conexión.
   -- =====================================================================
+  -- El PIN vuelve a demostrar la identidad: la reserva se retira al cerrar una
+  -- operación y al rechazarse una inspección, igual que en el kiosco real.
+  perform public.claim_driver(v_drv,'9999','disp-qa','Tablet QA');
   perform public.submit_inspection(v_vC, v_drv,
     jsonb_build_array(jsonb_build_object('category_key','x','item_id',v_norm::text,
       'item_name','N','item_type','estado','value','bueno')),
-    20000,'lleno','QA','qa-idem');
-  perform public.submit_inspection(v_vC, v_drv, jsonb_build_array(), 20000,'lleno','QA','qa-idem');
-  perform public.submit_inspection(v_vC, v_drv, jsonb_build_array(), 20000,'lleno','QA','qa-idem');
+    20000,'lleno','QA','qa-idem','disp-qa');
+  perform public.submit_inspection(v_vC, v_drv, jsonb_build_array(), 20000,'lleno','QA','qa-idem','disp-qa');
+  perform public.submit_inspection(v_vC, v_drv, jsonb_build_array(), 20000,'lleno','QA','qa-idem','disp-qa');
   if (select count(*) from public.inspections
         where organization_id=v_org and idempotency_key='qa-idem') <> 1 then
     raise exception 'FALLO 4: el reenvío duplicó la inspección';
@@ -147,7 +169,7 @@ begin
   -- la regla 14 (un conductor, una salida a la vez).
   perform public.register_return(
     (select id from public.inspections
-      where organization_id=v_org and idempotency_key='qa-idem'), 20100, 'medio');
+      where organization_id=v_org and idempotency_key='qa-idem'), 20100, 'medio', 'disp-qa');
 
   -- =====================================================================
   -- REGLA 5 — Sólo puede haber UNA ronda abierta por organización.
@@ -175,8 +197,12 @@ begin
   -- REGLA 7 — Un vehículo con novedades abiertas no puede volver a operar
   --           hasta que alguien las resuelva.
   -- =====================================================================
+  -- Fuera del bloque `begin ... exception`: ese bloque es un punto de retorno
+  -- implícito, y al capturar el error deshacía también la reserva del perfil,
+  -- dejando sin identidad a las reglas siguientes.
+  perform public.claim_driver(v_drv,'9999','disp-qa','Tablet QA');
   begin
-    perform public.submit_inspection(v_vA, v_drv, jsonb_build_array(), 1,'lleno','QA','qa-bloqueado');
+    perform public.submit_inspection(v_vA, v_drv, jsonb_build_array(), 1,'lleno','QA','qa-bloqueado','disp-qa');
     raise exception 'FALLO 7: permitió inspeccionar un vehículo con novedades abiertas';
   exception when others then
     get stacked diagnostics v_err = message_text;
@@ -203,10 +229,11 @@ begin
   select id into v_vD from public.vehicles where plate='QA-DDD' and organization_id=v_org;
   select id into v_vE from public.vehicles where plate='QA-EEE' and organization_id=v_org;
 
+  perform public.claim_driver(v_drv,'9999','disp-qa','Tablet QA');
   v_res := public.submit_inspection(v_vD, v_drv,
     jsonb_build_array(jsonb_build_object('category_key','x','item_id',v_norm::text,
       'item_name','N','item_type','estado','value','bueno')),
-    50000,'lleno','QA','qa-en-ruta-1');
+    50000,'lleno','QA','qa-en-ruta-1','disp-qa');
   if (v_res->>'authorized')::boolean is not true then
     raise exception 'FALLO 14: la salida de referencia no quedó autorizada';
   end if;
@@ -216,7 +243,7 @@ begin
     perform public.submit_inspection(v_vE, v_drv,
       jsonb_build_array(jsonb_build_object('category_key','x','item_id',v_norm::text,
         'item_name','N','item_type','estado','value','bueno')),
-      60000,'lleno','QA','qa-en-ruta-2');
+      60000,'lleno','QA','qa-en-ruta-2','disp-qa');
     raise exception 'FALLO 14: permitió una segunda salida sin registrar el regreso';
   exception when others then
     get stacked diagnostics v_err = message_text;
@@ -234,11 +261,14 @@ begin
   v_p := v_p+1; v_log := v_log || '14b:AVISA_EN_EL_PIN ';
 
   -- Registrar el regreso lo libera.
-  perform public.register_return(v_insp, 50120, 'medio');
+  perform public.register_return(v_insp, 50120, 'medio', 'disp-qa');
+  -- El PIN vuelve a demostrar la identidad: la reserva se retira al cerrar una
+  -- operación y al rechazarse una inspección, igual que en el kiosco real.
+  perform public.claim_driver(v_drv,'9999','disp-qa','Tablet QA');
   v_res := public.submit_inspection(v_vE, v_drv,
     jsonb_build_array(jsonb_build_object('category_key','x','item_id',v_norm::text,
       'item_name','N','item_type','estado','value','bueno')),
-    60000,'lleno','QA','qa-en-ruta-3');
+    60000,'lleno','QA','qa-en-ruta-3','disp-qa');
   if (v_res->>'authorized')::boolean is not true then
     raise exception 'FALLO 14c: tras registrar el regreso seguía bloqueado';
   end if;
@@ -410,7 +440,10 @@ begin
   raise notice '=========================================';
   raise notice 'PRUEBAS PASADAS: %  →  %', v_p, v_log;
   raise notice '=========================================';
+  insert into resumen values (v_p, v_log);
 end $$;
+
+select pruebas || ' reglas comprobadas' as resultado, detalle from resumen;
 
 -- Nada de lo anterior queda en la base.
 rollback;

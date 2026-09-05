@@ -293,6 +293,7 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
     await supabase.rpc("save_inspection_draft", {
       p_vehicle_id: vehicle.id, p_driver_id: driver.id, p_answers: payload,
       p_km_inicial: kmInicial ? Number(kmInicial) : null, p_fuel_in: fuelIn, p_obs: obs,
+      p_device_id: deviceId(),
     });
   }, [driver, vehicle, checklist, answers, issues, kmInicial, fuelIn, obs, supabase]);
 
@@ -327,7 +328,7 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
     const { data, error } = await supabase.rpc("submit_inspection", {
       p_vehicle_id: vehicle.id, p_driver_id: driver.id, p_answers: payload,
       p_km_inicial: kmInicial ? Number(kmInicial) : null, p_fuel_in: fuelIn,
-      p_obs: obs, p_idempotency_key: idemRef.current,
+      p_obs: obs, p_idempotency_key: idemRef.current, p_device_id: deviceId(),
     });
 
     if (error) {
@@ -337,6 +338,7 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
           await encolar({
             idempotencyKey: idemRef.current,
             vehicleId: vehicle.id, driverId: driver.id,
+            deviceId: deviceId(),
             vehiclePlate: vehicle.plate, driverName: driver.name,
             answers: payload,
             kmInicial: kmInicial ? Number(kmInicial) : null,
@@ -378,8 +380,12 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
         // Recordatorio de regreso: se ENCOLA, no se envía aquí.
         await supabase.rpc("enqueue_return_reminder", { p_inspection_id: inspId });
       }
-      // El perfil deja de estar reservado: el conductor terminó su inspección.
-      if (driver) {
+      // El perfil se libera SÓLO si la inspección no dejó al vehículo en ruta.
+      // Si sí lo dejó, el servidor rechaza la liberación a propósito: la
+      // reserva es la prueba de identidad que autorizará el regreso, y
+      // borrarla dejaba al conductor sin forma de cerrar su propia salida.
+      const abrioRuta = (data as { authorized?: boolean } | null)?.authorized === true;
+      if (driver && !abrioRuta) {
         await supabase.rpc("release_driver_claim", { p_driver_id: driver.id, p_device_id: deviceId() });
       }
     } catch {
@@ -406,7 +412,7 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
       const { error } = await supabase.rpc("submit_inspection", {
         p_vehicle_id: p.vehicleId, p_driver_id: p.driverId, p_answers: p.answers,
         p_km_inicial: p.kmInicial, p_fuel_in: p.fuelIn, p_obs: p.obs,
-        p_idempotency_key: p.idempotencyKey,
+        p_idempotency_key: p.idempotencyKey, p_device_id: p.deviceId ?? deviceId(),
       });
       if (!error) {
         await desencolar(p.idempotencyKey);
@@ -438,6 +444,7 @@ export default function KioskApp({ orgId }: { profileName: string; orgId: string
     setCierreBusy(true);
     const { error } = await supabase.rpc("register_return", {
       p_inspection_id: cierreOp.id, p_km_final: kmFinal ? Number(kmFinal) : null, p_fuel_out: fuelOut,
+      p_device_id: deviceId(),
     });
     setCierreBusy(false);
     if (error) { showToast(error.message); return; }

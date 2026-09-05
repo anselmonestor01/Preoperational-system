@@ -31,6 +31,13 @@ export type PendingInspection = {
   idempotencyKey: string;
   vehicleId: string;
   driverId: string;
+  /**
+   * Dispositivo que registró la inspección. Viaja con ella porque el servidor
+   * exige la reserva de perfil de ESE equipo para abrir la operación: sin este
+   * dato, una inspección que esperó a que volviera la señal se rechazaría por
+   * identidad no verificada.
+   */
+  deviceId?: string;
   vehiclePlate: string;
   driverName: string;
   answers: unknown[];

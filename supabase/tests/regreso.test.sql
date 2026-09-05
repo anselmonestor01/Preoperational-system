@@ -37,28 +37,35 @@ update public.drivers set pin_hash = extensions.crypt('4321', extensions.gen_sal
  where id = (select conductor from ids);
 
 -- Se le abre una operación: sale y no registra el regreso.
+--
+-- Se crea SIEMPRE una operación nueva en lugar de reaprovechar la que hubiera
+-- en la base: reutilizar el estado del día hacía que la prueba dependiera de
+-- kilometrajes ajenos y fallara por un motivo que no era el que se prueba.
 delete from public.driver_claims where driver_id = (select conductor from ids);
-update ids set inspeccion = (
-  select id from public.inspections
-   where driver_id = (select conductor from ids) and operation_status = 'open' limit 1);
+update public.inspections set operation_status='closed'
+ where driver_id = (select conductor from ids) and operation_status='open';
+update public.inspections set operation_status='closed'
+ where vehicle_id = (select vehiculo from ids) and operation_status='open';
+-- El vehículo elegido puede tener ya una inspección viva de la ronda en curso:
+-- se marca como liberada para que la de esta prueba pueda ocupar su sitio.
+update public.inspections set released = true
+ where vehicle_id = (select vehiculo from ids) and released = false;
 
-do $blk$
-begin
-  if (select inspeccion from ids) is null then
-    insert into public.inspections(organization_id, vehicle_id, driver_id, vehicle_plate,
-      driver_name, status, operation_status, km_inicial, submitted_at, created_at)
-    select o.id, i.vehiculo, i.conductor, v.plate, d.full_name,
-           'authorized', 'open', 10000, now(), now()
-      from ids i
-      join public.vehicles v on v.id = i.vehiculo
-      join public.drivers d on d.id = i.conductor
-      join public.organizations o on o.id = v.organization_id;
-    update ids set inspeccion = (
-      select id from public.inspections
-       where driver_id = (select conductor from ids) and operation_status = 'open'
-       order by created_at desc limit 1);
-  end if;
-end $blk$;
+with nueva as (
+  insert into public.inspections(organization_id, round_id, vehicle_id, driver_id, vehicle_plate,
+    driver_name, status, operation_status, km_inicial, submitted_at, created_at)
+  select o.id,
+         (select id from public.rounds where organization_id=o.id and status='open'
+           order by round_number desc limit 1),
+         i.vehiculo, i.conductor, v.plate, d.full_name,
+         'authorized', 'open', 10000, now(), now()
+    from ids i
+    join public.vehicles v on v.id = i.vehiculo
+    join public.drivers d on d.id = i.conductor
+    join public.organizations o on o.id = v.organization_id
+  returning id
+)
+update ids set inspeccion = (select id from nueva);
 
 -- ------------------------------------------------------------ el bloqueo ----
 insert into qa select 1, 'el conductor con vehiculo en ruta sigue bloqueado',
@@ -80,8 +87,20 @@ insert into qa select 4, 'se indica la placa para poder nombrarla',
   case when (public.claim_driver((select conductor from ids), '4321', 'otro-telefono', 'iPhone')->>'placa') is not null
        then 'si' else 'no' end, 'si';
 
+-- La permanencia mínima es política de empresa y aquí estorba: lo que se
+-- prueba es que el regreso pueda cerrarse desde OTRO equipo, no cuánto tiempo
+-- debe durar una operación. Eso tiene su propia suite en ciclo_operacion.
+-- (El kilometraje sí se deja realista: 250 km. El tope de plausibilidad de la
+--  migración 0027 rechaza los 90.000 km que usaba esta prueba antes, y con
+--  razón: ningún vehículo recorre eso en una salida.)
+update public.organizations set min_operacion_segundos = 0
+ where id = (select organization_id from public.drivers where id=(select conductor from ids));
+
+-- Desde la migración 0027 el regreso exige prueba de identidad: la reserva que
+-- acaba de crear `claim_driver` en este mismo teléfono. Es justo lo que hace
+-- posible cerrar desde un equipo distinto sin abrir un agujero.
 insert into qa select 5, 'el regreso se cierra desde un dispositivo distinto',
-  (public.register_return((select inspeccion from ids), 99999, 'lleno')->>'status'), 'closed';
+  (public.register_return((select inspeccion from ids), 10250, 'lleno', 'otro-telefono')->>'status'), 'closed';
 
 insert into qa select 6, 'cerrado el regreso, el perfil vuelve a estar libre',
   (public.claim_driver((select conductor from ids), '4321', 'otro-telefono', 'iPhone')->>'ok'), 'true';
