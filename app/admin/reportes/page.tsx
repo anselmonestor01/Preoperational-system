@@ -56,9 +56,17 @@ export default async function ReportesPage({
   const conteoNov: Record<string, { abiertas: number; totales: number }> = {};
   const novPorVehiculo: Record<string, { abiertas: number; totales: number }> = {};
   if (rows.length) {
-    const { data: novs } = await supabase.from("issues")
-      .select("inspection_id,vehicle_id,status")
-      .in("inspection_id", rows.map((r) => r.id));
+    // Se pide por lotes. Un `in(...)` con mil identificadores viaja en la URL y
+    // a esa escala la revienta: el filtro se trocea para que el reporte siga
+    // funcionando igual con diez inspecciones que con mil.
+    const LOTE = 200;
+    const novs: any[] = [];
+    for (let i = 0; i < rows.length; i += LOTE) {
+      const { data } = await supabase.from("issues")
+        .select("inspection_id,vehicle_id,status")
+        .in("inspection_id", rows.slice(i, i + LOTE).map((r) => r.id));
+      if (data) novs.push(...data);
+    }
     (novs ?? []).forEach((n: any) => {
       if (n.inspection_id) {
         const c = (conteoNov[n.inspection_id] ??= { abiertas: 0, totales: 0 });
@@ -116,7 +124,7 @@ export default async function ReportesPage({
   // Evidencia fotográfica de las inspecciones filtradas.
   const photoCards: { url: string; label: string; sub: string }[] = [];
   if (rows.length) {
-    const ids = rows.slice(0, 300).map((r) => r.id);
+    const ids = rows.slice(0, 200).map((r) => r.id);
     const { data: evs } = await supabase.from("issue_evidence").select("storage_path,inspection_id").in("inspection_id", ids);
     const paths = (evs ?? []).map((e) => e.storage_path);
     if (paths.length) {

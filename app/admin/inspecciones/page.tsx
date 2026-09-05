@@ -39,8 +39,15 @@ type Busqueda = {
 async function contarNovedades(supabase: ReturnType<typeof createClient>, ids: string[]) {
   const conteo: Record<string, { abiertas: number; totales: number }> = {};
   if (!ids.length) return conteo;
-  const { data } = await supabase.from("issues").select("inspection_id,status").in("inspection_id", ids);
-  (data ?? []).forEach((i: any) => {
+  // Por lotes: un `in(...)` largo viaja en la URL y a cierta escala la revienta.
+  const LOTE = 200;
+  const filas: any[] = [];
+  for (let i = 0; i < ids.length; i += LOTE) {
+    const { data } = await supabase.from("issues")
+      .select("inspection_id,status").in("inspection_id", ids.slice(i, i + LOTE));
+    if (data) filas.push(...data);
+  }
+  filas.forEach((i: any) => {
     if (!i.inspection_id) return;
     const c = (conteo[i.inspection_id] ??= { abiertas: 0, totales: 0 });
     c.totales++; if (i.status !== "resolved") c.abiertas++;
