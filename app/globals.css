@@ -3302,3 +3302,41 @@ input::placeholder, textarea::placeholder{ color:var(--muted); opacity:1; }
    detrás. Además el rebote del scroll y el área de la barra de desplazamiento
    asomaban en blanco. Se oscurece la raíz cuando el panel está montado. */
 body:has(.admin-mode){ background:#070B13; }
+
+/* --------------------------------------------------------- PIN visible --- */
+/* El PIN vivía al final de una línea con recorte por puntos suspensivos: al
+   pulsar «Ver PIN» el valor se revelaba fuera del recorte y no se veía nada.
+   Va delante, en pieza propia y sin recortar. */
+.ficha-persona{ flex-direction:row !important; align-items:center; gap:10px; }
+.ficha-persona .unidad-datos{ flex:1; min-width:0; }
+.pin-chip{
+  flex-shrink:0; display:inline-flex; align-items:baseline; gap:5px;
+  padding:3px 9px; border-radius:8px; white-space:nowrap;
+  font-size:10.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--muted); background:rgba(11,37,69,.05); border:1px solid transparent;
+  transition:background .16s, color .16s, border-color .16s;
+}
+.pin-chip b{ font-family:var(--mono, ui-monospace), Menlo, monospace;
+  font-size:13px; letter-spacing:.12em; font-weight:700; color:var(--navy); }
+.pin-chip.visible{ background:rgba(30,99,233,.10); color:var(--blue); border-color:rgba(30,99,233,.22); }
+.pin-chip.visible b{ color:var(--blue); }
+
+.admin-mode .pin-chip{ background:rgba(255,255,255,.05); color:var(--tinta-3); }
+.admin-mode .pin-chip b{ color:var(--tinta); }
+/* Revelado: se enciende, porque es la respuesta a lo que se acaba de pulsar. */
+.admin-mode .pin-chip.visible{
+  background:rgba(90,169,255,.14); color:var(--neon-2);
+  border-color:rgba(90,169,255,.3); box-shadow:0 0 16px -6px var(--brillo);
+}
+.admin-mode .pin-chip.visible b{ color:#fff; }
+
+/* ------------------------------------------------ límites de operación --- */
+.limites{ display:flex; flex-direction:column; gap:14px; }
+.limite{ display:grid; grid-template-columns:1fr auto; gap:2px 14px; align-items:center; }
+.limite-n{ font-size:13px; font-weight:600; color:var(--navy); }
+.limite-d{ grid-column:1; font-size:11.5px; line-height:1.45; color:var(--muted); }
+.limite-c{ grid-column:2; grid-row:1 / span 2; display:flex; align-items:center; gap:7px;
+  font-size:12px; color:var(--muted); white-space:nowrap; }
+.limite-c .manage-input{ width:88px; min-width:0; flex:none; text-align:right; }
+.admin-mode .limite-n{ color:var(--tinta); }
+.admin-mode .limite-d, .admin-mode .limite-c{ color:var(--tinta-3); }

@@ -204,7 +204,7 @@ export default async function ReportesPage({
               <td className="celda-num"><span className="badge ok">{x.autorizadas}</span></td>
               <td className="celda-num">{x.rechazadas ? <span className="badge bad">{x.rechazadas}</span> : <span className="cell-sub">—</span>}</td>
               <td className="celda-num cell-sub">{fmtKm(x.km)}</td>
-              <td className="celda-corta">
+              <td title={x.novedades ? `${x.novedades} en total${x.abiertas ? ` · ${x.abiertas} sin resolver` : ""}` : "ninguna"}>
                 {x.novedades
                   ? <>{x.novedades} en total{x.abiertas ? <div className="cell-sub" style={{ color: "var(--red)" }}>{x.abiertas} sin resolver</div> : null}</>
                   : <span className="cell-sub">ninguna</span>}

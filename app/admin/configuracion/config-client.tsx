@@ -12,7 +12,14 @@ import type { ItemType } from "@/lib/types";
 
 type Item = { id: string; name: string; item_type: ItemType; required: boolean; is_safety_critical: boolean; active: boolean; sort_order: number };
 type Cat = { id: string; key: string; name: string; icon: string; sort_order: number; active: boolean; checklist_items: Item[] };
-type Org = { id: string; name: string; max_non_critical_bad: number; timezone: string };
+type Org = {
+  id: string; name: string; max_non_critical_bad: number; timezone: string;
+  /** Límites del ciclo de operación. Ver el panel «Límites de la operación». */
+  min_operacion_segundos: number | null;
+  max_km_operacion: number | null;
+  max_kmh_operacion: number | null;
+  ventana_kmh_segundos: number | null;
+};
 
 const TYPE_LABEL: Record<ItemType, string> = { nivel: "Nivel", estado: "Bueno / Regular / Malo", equipo: "Tiene / Incompleto / No tiene" };
 
@@ -23,6 +30,13 @@ export default function ConfigClient({ categories, org, activeVersion }: { categ
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState("");
   const [maxBad, setMaxBad] = useState(org?.max_non_critical_bad ?? 3);
+  // Los límites que deciden si un regreso se admite. Vivían sólo en la base:
+  // el sistema rechazaba el registro citando una regla que nadie podía ver ni
+  // cambiar desde el panel, y eso convierte una validación correcta en un muro.
+  const [minMin, setMinMin] = useState(Math.round((org?.min_operacion_segundos ?? 300) / 60));
+  const [maxKm, setMaxKm] = useState(org?.max_km_operacion ?? 2000);
+  const [maxKmh, setMaxKmh] = useState(org?.max_kmh_operacion ?? 120);
+  const [ventana, setVentana] = useState(Math.round((org?.ventana_kmh_segundos ?? 1800) / 60));
   const show = (m: string) => { setToast(m); setTimeout(() => setToast(""), 2800); };
 
   async function updateItem(id: string, patch: Partial<Item>) {
@@ -84,7 +98,13 @@ export default function ConfigClient({ categories, org, activeVersion }: { categ
   }
   async function saveOrg() {
     setBusy(true);
-    const { error } = await supabase.from("organizations").update({ max_non_critical_bad: Number(maxBad) }).eq("id", org.id);
+    const { error } = await supabase.from("organizations").update({
+      max_non_critical_bad: Number(maxBad),
+      min_operacion_segundos: Math.round(Number(minMin) * 60),
+      max_km_operacion: Number(maxKm),
+      max_kmh_operacion: Number(maxKmh),
+      ventana_kmh_segundos: Math.round(Number(ventana) * 60),
+    }).eq("id", org.id);
     setBusy(false);
     if (error) return show(friendlyError(error));
     show("Parámetros guardados"); router.refresh();
@@ -119,6 +139,46 @@ export default function ConfigClient({ categories, org, activeVersion }: { categ
             <button className="btn btn-primary btn-sm" disabled={busy} onClick={saveOrg}>Guardar</button>
           </div>
         </div>
+        <div className="panel">
+          <div className="panel-head"><div><div className="panel-title">Límites de la operación</div>
+            <div className="panel-sub">Cuándo el sistema NO admite un registro de regreso</div></div></div>
+          <div className="limites">
+            <label className="limite">
+              <span className="limite-n">Permanencia mínima fuera</span>
+              <span className="limite-d">Un vehículo que salió hace menos de esto no puede haber vuelto. Impide reutilizar una unidad al instante.</span>
+              <span className="limite-c">
+                <input className="manage-input" type="number" min={0} max={720} value={minMin}
+                  onChange={(e) => setMinMin(Number(e.target.value))} /> minutos
+              </span>
+            </label>
+            <label className="limite">
+              <span className="limite-n">Recorrido máximo por operación</span>
+              <span className="limite-d">Tope duro de kilómetros entre la salida y el regreso. Atrapa el odómetro mal tecleado.</span>
+              <span className="limite-c">
+                <input className="manage-input" type="number" min={1} max={9999999} value={maxKm}
+                  onChange={(e) => setMaxKm(Number(e.target.value))} /> km
+              </span>
+            </label>
+            <label className="limite">
+              <span className="limite-n">Velocidad media máxima</span>
+              <span className="limite-d">Si el recorrido exigiría una media superior a esta, el dato es imposible.</span>
+              <span className="limite-c">
+                <input className="manage-input" type="number" min={1} max={400} value={maxKmh}
+                  onChange={(e) => setMaxKmh(Number(e.target.value))} /> km/h
+              </span>
+            </label>
+            <label className="limite">
+              <span className="limite-n">Ventana para promediar</span>
+              <span className="limite-d">La media nunca se calcula sobre menos tiempo que esto. Sin este suelo, un trayecto corto y legítimo —once kilómetros en cinco minutos— daría 132 km/h y se rechazaría.</span>
+              <span className="limite-c">
+                <input className="manage-input" type="number" min={1} max={1440} value={ventana}
+                  onChange={(e) => setVentana(Number(e.target.value))} /> minutos
+              </span>
+            </label>
+          </div>
+          <button className="btn btn-primary btn-sm" style={{ marginTop: 12 }} disabled={busy} onClick={saveOrg}>Guardar límites</button>
+        </div>
+
         <div className="panel">
           <div className="panel-head"><div><div className="panel-title">Sistema</div><div className="panel-sub">Datos de la organización</div></div></div>
           <div className="summary-card">

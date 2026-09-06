@@ -16,7 +16,9 @@ export default async function ConfiguracionPage() {
     supabase.from("checklist_versions").select("id,version_number,active,note,created_at").order("version_number", { ascending: false }).limit(20),
     // Filtrado por la empresa activa: un superadministrador ve varias, y sin
     // este filtro `maybeSingle()` fallaría con "multiple rows returned".
-    supabase.from("organizations").select("id,name,max_non_critical_bad,timezone")
+    supabase.from("organizations").select(
+      "id,name,max_non_critical_bad,timezone," +
+      "min_operacion_segundos,max_km_operacion,max_kmh_operacion,ventana_kmh_segundos")
       .eq("id", perfil?.organization_id ?? "").maybeSingle(),
   ]);
   const active = (versions ?? []).find((v) => v.active);

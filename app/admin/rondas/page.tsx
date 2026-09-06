@@ -86,10 +86,10 @@ export default async function RondasPage() {
                   <div className="unidad-id">
                     <span className="unidad-placa" style={{ fontSize: 14 }}>{r.label}</span>
                     {r.status === "open" ? <span className="badge ok">Abierta</span> : <span className="badge neutral">Cerrada</span>}
-                    {r.responsible ? <span className="unidad-datos">{r.responsible}</span> : null}
+                    {r.responsible ? <span className="unidad-datos" title={r.responsible}>{r.responsible}</span> : null}
                   </div>
                   <div className="fila-acciones">
-                    <span className="unidad-datos">{items.length} inspección(es) · {okc} en buen estado · {items.length - okc} con novedades</span>
+                    <span className="unidad-datos" style={{ overflow: "visible", whiteSpace: "normal" }}>{items.length} inspección(es) · {okc} en buen estado · {items.length - okc} con novedades</span>
                     <RoundActions roundId={r.id} label={r.label} inspections={items.length} />
                   </div>
                 </div>

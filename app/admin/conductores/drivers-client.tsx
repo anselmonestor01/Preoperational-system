@@ -283,11 +283,15 @@ export default function DriversClient({
                     : <span className="badge ok">Disponible</span>}
                 </div>
 
-                <div className="unidad-ficha">
-                  <span className="unidad-datos">
+                <div className="unidad-ficha ficha-persona">
+                  <span className={"pin-chip" + (revealed[d.id] ? " visible" : "")}
+                    title={revealed[d.id] ? "PIN visible — vuelve a pulsar para ocultarlo" : "PIN oculto"}>
+                    PIN <b>{revealed[d.id] ?? "••••"}</b>
+                  </span>
+                  <span className="unidad-datos"
+                    title={`Licencia ${d.license || "sin registrar"} · WhatsApp ${d.whatsapp || "sin registrar"}`}>
                     Licencia {d.license ? d.license : <span style={{ color: "var(--orange)" }}>sin registrar</span>}
                     {" · WhatsApp "}{d.whatsapp ? d.whatsapp : <span style={{ color: "var(--orange)" }}>sin registrar</span>}
-                    {" · PIN "}<b style={{ fontFamily: "monospace", letterSpacing: 1 }}>{revealed[d.id] ?? "••••"}</b>
                   </span>
                 </div>
 
