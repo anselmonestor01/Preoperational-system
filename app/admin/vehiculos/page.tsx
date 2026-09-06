@@ -24,14 +24,31 @@ export default async function VehiculosPage({
 }: { searchParams: { f?: string } }) {
   const supabase = createClient();
   const { desde, hasta } = diaBogota();
-  const [{ data: rows }, { data: ops }, { data: round }, { data: hoy }] = await Promise.all([
+  // `vehicle_status_view` no expone photo_path y se comparte con el kiosco, así
+  // que la foto se trae aparte y se cruza por id en vez de recrear la vista.
+  const [{ data: rows }, { data: ops }, { data: round }, { data: hoy }, { data: fotos }, { data: org }] = await Promise.all([
     supabase.from("vehicle_status_view").select("*").order("plate"),
     supabase.from("inspections").select("vehicle_id").eq("operation_status", "open"),
     supabase.from("rounds").select("label").eq("status", "open").order("round_number", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("inspections").select("vehicle_id")
       .gte("submitted_at", desde).lte("submitted_at", hasta)
       .neq("status", "in_progress").neq("status", "voided"),
+    supabase.from("vehicles").select("id,photo_path").not("photo_path", "is", null),
+    supabase.from("organizations").select("id").maybeSingle(),
   ]);
+
+  // Bucket privado: la lista viaja con URLs firmadas de una hora, nunca con
+  // rutas de almacenamiento en crudo.
+  const photoMap: Record<string, string> = {};
+  const rutas = (fotos ?? []).map((f: any) => f.photo_path).filter(Boolean) as string[];
+  if (rutas.length) {
+    const { data: firmadas } = await supabase.storage.from("vehicle-photos").createSignedUrls(rutas, 3600);
+    const porRuta: Record<string, string> = {};
+    (firmadas ?? []).forEach((s) => { if (s.path && s.signedUrl) porRuta[s.path] = s.signedUrl; });
+    (fotos ?? []).forEach((f: any) => {
+      if (f.photo_path && porRuta[f.photo_path]) photoMap[f.id] = porRuta[f.photo_path];
+    });
+  }
   const opsBy: Record<string, number> = {};
   (ops ?? []).forEach((o: any) => { opsBy[o.vehicle_id] = (opsBy[o.vehicle_id] ?? 0) + 1; });
   const inspeccionadosHoy = Array.from(new Set((hoy ?? []).map((h: any) => h.vehicle_id).filter(Boolean)));
@@ -42,6 +59,8 @@ export default async function VehiculosPage({
       roundLabel={round?.label ?? "—"}
       inspeccionadosHoy={inspeccionadosHoy}
       filtroInicial={searchParams.f ?? "todos"}
+      photoMap={photoMap}
+      orgId={org?.id ?? ""}
     />
   );
 }

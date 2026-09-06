@@ -39,8 +39,11 @@ export default async function RondasPage() {
       {pending.length ? (
         <div className="panel" style={{ borderColor: "#F0C4B9", background: "var(--red-soft)", marginBottom: 14 }}>
           <div className="panel-title" style={{ color: "var(--red)" }}>⚠ Sin inspeccionar en esta ronda ({pending.length})</div>
-          <div className="rejilla-placas">{pending.map((v) => (
-            <span key={v} className="placa-casilla sin"><span className="p">{v}</span></span>))}</div>
+          <details className="pliegue">
+            <summary>Ver las {pending.length} unidades</summary>
+            <div className="rejilla-placas">{pending.map((v) => (
+              <span key={v} className="placa-casilla sin"><span className="p">{v}</span></span>))}</div>
+          </details>
         </div>
       ) : (
         <div className="panel" style={{ borderColor: "#B8E0C8", background: "var(--green-soft)", marginBottom: 14 }}>
@@ -52,8 +55,11 @@ export default async function RondasPage() {
         <div className="panel" style={{ marginBottom: 14 }}>
           <div className="panel-title">Vehículos bloqueados</div>
           <div className="panel-sub" style={{ margin: "8px 0" }}>No pueden operar hasta ser liberados (novedades o bloqueo administrativo).</div>
-          <div className="rejilla-placas">{blocked.map((v) => (
-            <span key={v} className="placa-casilla mala"><span className="p">{v}</span></span>))}</div>
+          <details className="pliegue">
+            <summary>Ver las {blocked.length} unidades</summary>
+            <div className="rejilla-placas">{blocked.map((v) => (
+              <span key={v} className="placa-casilla mala"><span className="p">{v}</span></span>))}</div>
+          </details>
         </div>
       )}
 
@@ -88,13 +94,16 @@ export default async function RondasPage() {
                   </div>
                 </div>
                 {items.length > 0 && (
-                  <div className="rejilla-placas">
-                    {items.map((i, k) => (
-                      <span key={k} className={"placa-casilla" + (i.ok ? "" : " mala")}>
-                        <span className="p">{i.plate}</span><span className="h">{i.time}</span>
-                      </span>
-                    ))}
-                  </div>
+                  <details className="pliegue">
+                    <summary>Ver las {items.length} unidades del turno</summary>
+                    <div className="rejilla-placas">
+                      {items.map((i, k) => (
+                        <span key={k} className={"placa-casilla" + (i.ok ? "" : " mala")}>
+                          <span className="p">{i.plate}</span><span className="h">{i.time}</span>
+                        </span>
+                      ))}
+                    </div>
+                  </details>
                 )}
               </div>
             );

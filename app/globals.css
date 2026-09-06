@@ -2438,12 +2438,14 @@ input::placeholder, textarea::placeholder{ color:var(--muted); opacity:1; }
 /* Franja de estado: el indicador más barato de leer y el que impide perderse
    al recorrer una ronda larga. Va en la primera celda, no en la fila, para
    que sobreviva al borde redondeado del contenedor. */
-.tabla-op tbody td:first-child{ box-shadow:inset 3px 0 0 var(--line); }
-.tabla-op tr.est-ok    td:first-child{ box-shadow:inset 3px 0 0 var(--green); }
+/* Lo que salió bien no necesita señalarse: es la norma. La franja se reserva
+   para lo que rompe la norma, y así vuelve a querer decir algo. Antes cada
+   fila llevaba color y el conjunto se leía como un arcoíris sin jerarquía. */
+.tabla-op tbody td:first-child{ box-shadow:none; }
 .tabla-op tr.est-bad   td:first-child{ box-shadow:inset 3px 0 0 var(--red); }
-.tabla-op tr.est-ruta  td:first-child{ box-shadow:inset 3px 0 0 var(--blue); }
 .tabla-op tr.est-warn  td:first-child{ box-shadow:inset 3px 0 0 var(--orange); }
-.tabla-op tr.est-nula  td:first-child{ box-shadow:inset 3px 0 0 #94A3B8; }
+.tabla-op tr.est-ruta  td:first-child{ box-shadow:inset 3px 0 0 rgba(30,99,233,.45); }
+.tabla-op tr.est-nula  td:first-child{ box-shadow:inset 3px 0 0 rgba(148,163,184,.6); }
 
 /* Una sola línea por dato: el recorte con puntos suspensivos es preferible al
    salto de línea, que es lo que hacía crecer las filas a tres alturas. */
@@ -2478,11 +2480,11 @@ input::placeholder, textarea::placeholder{ color:var(--muted); opacity:1; }
   transition:border-color .12s, box-shadow .12s;
 }
 .fila-unidad:hover{ border-color:rgba(30,99,233,.25); box-shadow:0 4px 14px rgba(11,37,69,.06); }
-.fila-unidad.est-ok{   border-left-color:var(--green); }
+.fila-unidad.est-ok{   border-left-color:transparent; }
 .fila-unidad.est-warn{ border-left-color:var(--orange); }
 .fila-unidad.est-bad{  border-left-color:var(--red); }
-.fila-unidad.est-ruta{ border-left-color:var(--blue); }
-.fila-unidad.est-off{  border-left-color:#94A3B8; }
+.fila-unidad.est-ruta{ border-left-color:rgba(30,99,233,.5); }
+.fila-unidad.est-off{  border-left-color:rgba(148,163,184,.6); }
 
 .unidad-id{ display:flex; align-items:center; gap:9px; min-width:0; }
 .unidad-id svg{ color:var(--blue); flex-shrink:0; }
@@ -2548,3 +2550,271 @@ input::placeholder, textarea::placeholder{ color:var(--muted); opacity:1; }
 .grupo-ronda > summary{ align-items:center; }
 .grupo-cifras{ display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; margin-left:auto; }
 .grupo-cifras .badge{ white-space:nowrap; }
+
+/* =========================================================
+   CAPA DE SUPERFICIE — profundidad y reposo
+   ---------------------------------------------------------
+   El panel era blanco plano con todo al mismo nivel y un semáforo de cuatro
+   colores saturados repartido por cada fila. Con setenta unidades en pantalla,
+   eso no informa: satura. Aquí se establece otra base.
+
+   1. FONDO AMBIENTAL. Un degradado azul muy tenue con dos halos difusos, fijo
+      al viewport. Da profundidad sin dibujar nada que compita con los datos.
+   2. VIDRIO. Las superficies son blancas translúcidas con desenfoque detrás:
+      flotan sobre el fondo en vez de recortarse contra él.
+   3. LUZ EN CAPAS. Ninguna sombra de un solo golpe. Tres capas —contacto,
+      difusión y ambiente— es lo que hace que un plano parezca levantado.
+   4. COLOR RACIONADO. El estado normal es gris. El color entra sólo cuando hay
+      algo que decidir, y así vuelve a significar algo.
+   ========================================================= */
+:root{
+  /* Luz en capas: contacto + difusión + ambiente. */
+  --alza-1:0 1px 2px rgba(11,37,69,.04), 0 4px 12px rgba(11,37,69,.045);
+  --alza-2:0 1px 2px rgba(11,37,69,.05), 0 8px 24px rgba(11,37,69,.06), 0 24px 48px -12px rgba(11,37,69,.06);
+  --alza-3:0 2px 4px rgba(11,37,69,.06), 0 16px 40px rgba(11,37,69,.09), 0 40px 80px -16px rgba(11,37,69,.10);
+  --vidrio:rgba(255,255,255,.72);
+  --vidrio-firme:rgba(255,255,255,.86);
+  --hairline:rgba(11,37,69,.07);
+  /* Tintes de estado: mismo tono, mínima saturación. Se leen como material,
+     no como semáforo. */
+  --t-neutro:rgba(11,37,69,.05);
+  --t-azul:rgba(30,99,233,.09);
+  --t-verde:rgba(30,142,90,.10);
+  --t-ambar:rgba(201,122,26,.11);
+  --t-rojo:rgba(198,66,60,.10);
+}
+
+.admin-mode .admin-main{ position:relative; background:transparent; }
+/* Fijo al viewport: al desplazarse, el fondo se queda quieto y sólo se mueve
+   el contenido. Es lo que da la sensación de capas. */
+.admin-mode .admin-main::before{
+  content:""; position:fixed; inset:0; z-index:0; pointer-events:none;
+  background:
+    radial-gradient(60rem 40rem at 78% -8%, rgba(30,99,233,.13), transparent 62%),
+    radial-gradient(46rem 34rem at 4% 108%, rgba(99,166,234,.14), transparent 60%),
+    linear-gradient(178deg, #F7FAFE 0%, #EEF4FC 48%, #E9F1FB 100%);
+}
+.admin-mode .admin-body,
+.admin-mode .admin-topbar{ position:relative; z-index:1; }
+
+.admin-mode .admin-topbar{
+  background:rgba(255,255,255,.72);
+  backdrop-filter:saturate(180%) blur(20px);
+  -webkit-backdrop-filter:saturate(180%) blur(20px);
+  border-bottom:1px solid var(--hairline);
+}
+
+/* ------------------------------------------------------------- vidrio --- */
+.admin-mode .panel{
+  background:var(--vidrio);
+  backdrop-filter:saturate(180%) blur(20px);
+  -webkit-backdrop-filter:saturate(180%) blur(20px);
+  border:1px solid var(--hairline);
+  border-radius:22px;
+  box-shadow:var(--alza-2);
+}
+
+/* ------------------------------------------------- color racionado ------ */
+/* Las insignias dejan de ser bloques de color y pasan a ser tintes sobre el
+   material. El peso lo lleva el texto, no el fondo. */
+.admin-mode .badge{
+  border:1px solid transparent; font-weight:600; letter-spacing:.1px;
+  background:var(--t-neutro); color:var(--navy-70);
+}
+.admin-mode .badge.ok{   background:var(--t-verde); color:#15704A; }
+.admin-mode .badge.warn{ background:var(--t-ambar); color:#9A5C12; }
+.admin-mode .badge.bad{  background:var(--t-rojo);  color:#A93731; }
+.admin-mode .badge.info{ background:var(--t-azul);  color:#1A56C4; }
+.admin-mode .badge.neutral{ background:var(--t-neutro); color:var(--muted); }
+
+/* ------------------------------------------------------------ burbujas --- */
+/* Entrar a Inspecciones abría ocho tablas a la vez. Ahora se entra a una
+   rejilla de turnos: cada burbuja lleva su avance y sus cifras, y el detalle
+   —con su consulta— sólo aparece al abrir la que interesa. */
+.burbujas{
+  display:grid; grid-template-columns:repeat(auto-fill,minmax(268px,1fr));
+  gap:14px; margin-top:4px;
+}
+.burbuja{
+  display:flex; flex-direction:column; gap:13px;
+  padding:17px 18px; border-radius:20px; text-decoration:none;
+  background:var(--vidrio-firme);
+  backdrop-filter:saturate(180%) blur(20px);
+  -webkit-backdrop-filter:saturate(180%) blur(20px);
+  border:1px solid var(--hairline);
+  box-shadow:var(--alza-1);
+  transition:transform .22s cubic-bezier(.2,.8,.2,1), box-shadow .22s, border-color .22s;
+}
+.burbuja:hover{ transform:translateY(-3px); box-shadow:var(--alza-3); border-color:rgba(30,99,233,.22); }
+.burbuja.abierta{
+  border-color:rgba(30,99,233,.4); box-shadow:var(--alza-3), 0 0 0 3px rgba(30,99,233,.10);
+  transform:translateY(-2px);
+}
+.burbuja-cab{ display:flex; align-items:center; gap:13px; }
+.burbuja-anillo{ position:relative; width:52px; height:52px; flex-shrink:0; }
+.burbuja-anillo svg{ width:100%; height:100%; transform:rotate(-90deg); }
+.burbuja-anillo circle{ fill:none; stroke-width:5.5; stroke-linecap:round; }
+.burbuja-anillo .pista{ stroke:rgba(11,37,69,.08); }
+/* El anillo mide CUÁNTO va del turno, no cómo de grave es. Pintarlo por
+   gravedad dejaba cinco de cada seis rondas en rojo, que es como no decir
+   nada. La gravedad ya la llevan las cifras de debajo. */
+.burbuja-anillo .avance{ stroke:var(--blue); transition:stroke-dasharray .4s; }
+.burbuja-total{
+  position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  font-family:var(--font-display),system-ui,sans-serif; font-weight:700; font-size:15px; color:var(--navy);
+}
+.burbuja-id{ display:flex; flex-direction:column; gap:1px; min-width:0; }
+.burbuja-nombre{
+  font-family:var(--font-display),system-ui,sans-serif; font-weight:700; font-size:14.5px;
+  color:var(--navy); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.burbuja-meta{ font-size:11.2px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.punto-vivo{
+  width:8px; height:8px; border-radius:50%; background:var(--green); flex-shrink:0; margin-left:auto;
+  box-shadow:0 0 0 3px rgba(30,142,90,.16);
+}
+.burbuja-cifras{ display:flex; flex-wrap:wrap; gap:4px 12px; font-size:11.8px; color:var(--muted); }
+.burbuja-cifras b{ color:var(--navy); font-weight:700; font-size:13px; margin-right:2px; }
+.burbuja-cifras .c-bad b{ color:var(--red); }
+.burbuja-cifras .c-ruta b{ color:var(--blue); }
+.burbuja-pie{
+  margin-top:auto; padding-top:2px; font-size:11.5px; font-weight:600; color:var(--blue);
+}
+
+/* El detalle se despliega a lo ancho, debajo de la rejilla. */
+.detalle-ronda{
+  margin-top:16px; padding:18px 20px; border-radius:20px;
+  background:var(--vidrio-firme);
+  backdrop-filter:saturate(180%) blur(20px);
+  -webkit-backdrop-filter:saturate(180%) blur(20px);
+  border:1px solid rgba(30,99,233,.16);
+  box-shadow:var(--alza-2);
+  animation:asomar .26s cubic-bezier(.2,.8,.2,1);
+}
+@keyframes asomar{ from{ opacity:0; transform:translateY(-6px); } to{ opacity:1; transform:none; } }
+@media (prefers-reduced-motion:reduce){
+  .detalle-ronda{ animation:none; }
+  .burbuja{ transition:none; }
+  .burbuja:hover,.burbuja.abierta{ transform:none; }
+}
+
+/* -------------------------------------------------------------- pliegue --- */
+/* Sesenta y una placas desplegadas no son información: son un muro. La cifra
+   es lo que se necesita casi siempre; la lista, sólo cuando se va a actuar. */
+.pliegue{ margin-top:10px; }
+.pliegue > summary{
+  display:inline-flex; align-items:center; gap:7px; cursor:pointer; list-style:none;
+  font-size:12px; font-weight:600; color:var(--blue);
+  padding:6px 12px; border-radius:100px; background:var(--t-azul);
+  transition:background .14s;
+}
+.pliegue > summary::-webkit-details-marker{ display:none; }
+.pliegue > summary::before{
+  content:""; width:0; height:0; border-left:4.5px solid currentColor;
+  border-top:3.5px solid transparent; border-bottom:3.5px solid transparent;
+  transition:transform .18s;
+}
+.pliegue[open] > summary::before{ transform:rotate(90deg); }
+.pliegue > summary:hover{ background:rgba(30,99,233,.15); }
+.pliegue[open] > summary{ margin-bottom:4px; }
+
+/* ------------------------------------------------------ tarjeta de flota --- */
+/* La flota se identificaba con el mismo icono de camión repetido setenta veces:
+   obligaba a leer la placa carácter por carácter. Con la foto real, la unidad
+   se reconoce antes de leerla. */
+.rejilla-flota{
+  display:grid; grid-template-columns:repeat(auto-fill,minmax(272px,1fr)); gap:14px;
+}
+.tarjeta-unidad{
+  display:flex; flex-direction:column; overflow:hidden; border-radius:20px;
+  background:var(--vidrio-firme);
+  backdrop-filter:saturate(180%) blur(20px);
+  -webkit-backdrop-filter:saturate(180%) blur(20px);
+  border:1px solid var(--hairline);
+  box-shadow:var(--alza-1);
+  transition:transform .22s cubic-bezier(.2,.8,.2,1), box-shadow .22s;
+}
+.tarjeta-unidad:hover{ transform:translateY(-3px); box-shadow:var(--alza-3); }
+/* El estado, en un filo superior en vez de en un bloque de color. */
+.tarjeta-unidad::before{ content:""; height:3px; background:transparent; }
+.tarjeta-unidad.est-warn::before{ background:var(--orange); }
+.tarjeta-unidad.est-bad::before{  background:var(--red); }
+.tarjeta-unidad.est-ruta::before{ background:rgba(30,99,233,.5); }
+.tarjeta-unidad.est-off::before{  background:rgba(148,163,184,.6); }
+
+.unidad-foto{
+  position:relative; aspect-ratio:16/9; background:linear-gradient(160deg,#E8F0FA,#DCE8F7);
+  display:flex; align-items:center; justify-content:center; overflow:hidden;
+}
+.unidad-foto img{ width:100%; height:100%; object-fit:cover; display:block; }
+.unidad-sinfoto{
+  font-family:var(--font-display),system-ui,sans-serif; font-weight:700; font-size:23px;
+  letter-spacing:1.5px; color:rgba(11,37,69,.26);
+}
+.unidad-foto > .badge{
+  position:absolute; left:10px; bottom:10px;
+  background:rgba(255,255,255,.82) !important;
+  backdrop-filter:saturate(180%) blur(12px);
+  -webkit-backdrop-filter:saturate(180%) blur(12px);
+  box-shadow:0 2px 8px rgba(11,37,69,.12);
+}
+.unidad-camara{
+  position:absolute; right:9px; top:9px; width:29px; height:29px; border-radius:50%;
+  border:none; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  background:rgba(255,255,255,.8); color:var(--navy-70);
+  backdrop-filter:saturate(180%) blur(12px);
+  -webkit-backdrop-filter:saturate(180%) blur(12px);
+  box-shadow:0 2px 8px rgba(11,37,69,.14);
+  opacity:0; transition:opacity .18s, transform .18s;
+}
+.tarjeta-unidad:hover .unidad-camara{ opacity:1; }
+.unidad-camara:hover{ color:var(--blue); transform:scale(1.06); }
+.unidad-camara:focus-visible{ opacity:1; outline:2px solid var(--blue); outline-offset:2px; }
+
+.unidad-cuerpo{ padding:12px 14px 4px; display:flex; flex-direction:column; gap:7px; flex:1; }
+.unidad-titulo{ display:flex; flex-direction:column; gap:2px; min-width:0; }
+.unidad-pie{
+  display:flex; align-items:center; gap:6px; padding:10px 14px 13px; flex-wrap:wrap;
+}
+.unidad-mas{ display:flex; gap:4px; margin-left:auto; }
+/* Dentro de la tarjeta el aviso ya no necesita ocupar una banda a lo ancho. */
+.tarjeta-unidad .unidad-aviso{
+  grid-column:auto; margin:0; padding:7px 10px; border-top:none; border-radius:10px;
+  font-size:11.6px; line-height:1.4;
+}
+.tarjeta-unidad .unidad-aviso.av-warn{ background:var(--t-ambar); }
+.tarjeta-unidad .unidad-aviso.av-bad{  background:var(--t-rojo); }
+
+/* ------------------------------------------------------- índice A-Z ----- */
+/* Con cien conductores, paginar de veinte en veinte obliga a recorrer seis
+   páginas para llegar a un apellido con M. El raíl salta directamente, y el
+   corte de inicial le da a la lista el orden que no tenía. */
+.indice-abc{
+  position:sticky; top:0; z-index:3;
+  display:flex; flex-wrap:wrap; gap:2px; margin-bottom:12px; padding:7px 9px;
+  border-radius:14px; background:var(--vidrio);
+  backdrop-filter:saturate(180%) blur(20px);
+  -webkit-backdrop-filter:saturate(180%) blur(20px);
+  border:1px solid var(--hairline);
+}
+.abc-letra{
+  min-width:23px; height:23px; display:flex; align-items:center; justify-content:center;
+  border-radius:7px; font-size:11.5px; font-weight:700; text-decoration:none;
+  color:var(--blue); transition:background .12s, color .12s;
+}
+.abc-letra:hover{ background:var(--t-azul); }
+.abc-letra.vacia{ color:rgba(11,37,69,.18); pointer-events:none; }
+.abc-corte{
+  display:flex; align-items:center; gap:9px; margin:14px 2px 2px; scroll-margin-top:64px;
+}
+.abc-corte:first-child{ margin-top:0; }
+.abc-corte .l{
+  font-family:var(--font-display),system-ui,sans-serif; font-weight:700; font-size:13px;
+  color:var(--navy); min-width:15px;
+}
+.abc-corte .n{ font-size:10.5px; color:var(--muted); }
+.abc-corte::after{ content:""; flex:1; height:1px; background:var(--hairline); }
+
+/* Un botón partido en dos renglones estira la fila y rompe la retícula. */
+.fila-acciones .btn,
+.unidad-pie .btn{ white-space:nowrap; }

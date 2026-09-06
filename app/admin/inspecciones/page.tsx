@@ -31,7 +31,7 @@ const CAMPOS =
   "checklist_version_number,bad_count,warn_count,device_id,device_label,round_id";
 
 type Busqueda = {
-  status?: string; q?: string; page?: string; vista?: string; ronda?: string;
+  status?: string; q?: string; page?: string; vista?: string; ronda?: string; abierta?: string;
 };
 
 /** Cuántas novedades abrió cada inspección y cuántas siguen vivas. Sin esto,
@@ -61,6 +61,11 @@ export default async function InspeccionesPage({ searchParams }: { searchParams:
   const page = Math.max(1, Number(searchParams.page ?? 1));
   const status = searchParams.status ?? "all";
   const ronda = searchParams.ronda ?? "all";
+  // Divulgación progresiva: al entrar sólo se ven las burbujas de ronda. El
+  // detalle —y su consulta— sólo existe para la ronda que el administrador
+  // decide abrir. Antes la pantalla traía las inspecciones de ocho rondas de
+  // golpe y las volcaba todas en tablas abiertas.
+  const abierta = searchParams.abierta ?? "";
   const q = (searchParams.q ?? "").trim();
 
   const { data: rondas } = await supabase.from("rounds")
@@ -79,11 +84,12 @@ export default async function InspeccionesPage({ searchParams }: { searchParams:
 
   const enlace = (extra: Partial<Busqueda>) => {
     const p = new URLSearchParams();
-    const v = { vista, status, ronda, q, ...extra } as Record<string, string>;
+    const v = { vista, status, ronda, q, abierta, ...extra } as Record<string, string>;
     if (v.vista !== "rondas") p.set("vista", v.vista);
     if (v.status !== "all") p.set("status", v.status);
     if (v.ronda !== "all") p.set("ronda", v.ronda);
     if (v.q) p.set("q", v.q);
+    if (v.abierta) p.set("abierta", v.abierta);
     if (extra.page && extra.page !== "1") p.set("page", extra.page);
     const s = p.toString();
     return "/admin/inspecciones" + (s ? `?${s}` : "");
@@ -99,6 +105,8 @@ export default async function InspeccionesPage({ searchParams }: { searchParams:
   let totalFilas = 0;
   let rondasVisibles: any[] = [];
   let totalRondas = 0;
+  /** Cifras por ronda para las burbujas, sin traer la ficha de cada inspección. */
+  const resumen: Record<string, { total: number; aut: number; rec: number; ruta: number }> = {};
 
   if (vista === "lista") {
     let query = aplicarFiltros(supabase.from("inspections").select(CAMPOS, { count: "exact" }))
@@ -108,17 +116,34 @@ export default async function InspeccionesPage({ searchParams }: { searchParams:
     filas = data ?? []; totalFilas = count ?? 0;
   } else {
     // Se pagina por RONDA, no por inspección: así un turno nunca queda partido
-    // entre dos páginas, que es justo lo que hacía ilegible la tabla plana.
+    // entre dos páginas.
     const todas = (rondas ?? []).filter((r) => ronda === "all" || r.id === ronda);
     totalRondas = todas.length;
     rondasVisibles = todas.slice((page - 1) * RONDAS_PAGE, page * RONDAS_PAGE);
+
     if (rondasVisibles.length) {
-      let query = aplicarFiltros(supabase.from("inspections").select(CAMPOS))
-        .in("round_id", rondasVisibles.map((r) => r.id))
+      // Para las burbujas basta con cuatro columnas por inspección. Traer la
+      // ficha completa de todas las rondas visibles era lo que convertía la
+      // entrada al módulo en un volcado.
+      const { data: livianas } = await aplicarFiltros(
+        supabase.from("inspections").select("round_id,authorized,operation_status,status"))
+        .in("round_id", rondasVisibles.map((r) => r.id));
+      (livianas ?? []).forEach((i: any) => {
+        const c = (resumen[i.round_id ?? "sin"] ??= { total: 0, aut: 0, rec: 0, ruta: 0 });
+        c.total++;
+        if (i.operation_status === "open") c.ruta++;
+        else if (i.authorized === true) c.aut++;
+        else if (i.authorized === false) c.rec++;
+      });
+      totalFilas = (livianas ?? []).length;
+    }
+
+    // Y sólo la ronda desplegada carga su detalle.
+    if (abierta) {
+      const { data } = await aplicarFiltros(supabase.from("inspections").select(CAMPOS))
+        .eq("round_id", abierta)
         .order("submitted_at", { ascending: false, nullsFirst: false });
-      const { data } = await query;
       filas = data ?? [];
-      totalFilas = filas.length;
     }
   }
 
@@ -225,39 +250,66 @@ export default async function InspeccionesPage({ searchParams }: { searchParams:
       </div>
 
       {vista === "rondas" ? (
-        rondasVisibles.length ? rondasVisibles.map((r) => {
-          const rs = porRonda[r.id] ?? [];
-          const aut = rs.filter((x) => x.authorized === true).length;
-          const rec = rs.filter((x) => x.authorized === false).length;
-          const ruta = rs.filter((x) => x.operation_status === "open").length;
-          return (
-            <details key={r.id} className="grupo-ronda" open={r.status === "open"}>
-              <summary>
-                <span className="grupo-flecha">▶</span>
-                <span>
-                  <span className="grupo-titulo">{r.label}</span>
-                  {r.status === "open" && <span className="badge info" style={{ marginLeft: 8 }}>Abierta</span>}
-                  <div className="grupo-meta">
-                    Ronda #{r.round_number} · {fmtDateTime(r.started_at)}
-                    {r.responsible ? ` · ${r.responsible}` : ""}
+        rondasVisibles.length ? (
+          <>
+            <div className="burbujas">
+              {rondasVisibles.map((r) => {
+                const c = resumen[r.id] ?? { total: 0, aut: 0, rec: 0, ruta: 0 };
+                const abre = abierta === r.id;
+                // Anillo de avance: la proporción resuelta del turno de un
+                // vistazo, sin tener que leer cuatro cifras y compararlas.
+                const hecho = c.total ? (c.aut + c.rec) / c.total : 0;
+                const R = 26, C = 2 * Math.PI * R;
+                const tono = c.rec > 0 ? "at-bad" : c.ruta > 0 ? "at-ruta" : "at-ok";
+                return (
+                  <Link key={r.id} href={enlace({ abierta: abre ? "" : r.id })}
+                    className={"burbuja " + tono + (abre ? " abierta" : "")}>
+                    <div className="burbuja-cab">
+                      <div className="burbuja-anillo">
+                        <svg viewBox="0 0 64 64" aria-hidden="true">
+                          <circle cx="32" cy="32" r={R} className="pista" />
+                          <circle cx="32" cy="32" r={R} className="avance"
+                            strokeDasharray={`${(C * hecho).toFixed(1)} ${C.toFixed(1)}`} />
+                        </svg>
+                        <span className="burbuja-total">{c.total}</span>
+                      </div>
+                      <div className="burbuja-id">
+                        <span className="burbuja-nombre">{r.label}</span>
+                        <span className="burbuja-meta">
+                          Ronda #{r.round_number} · {fmtDateTime(r.started_at)}
+                        </span>
+                        {r.responsible && <span className="burbuja-meta">{r.responsible}</span>}
+                      </div>
+                      {r.status === "open" && <span className="punto-vivo" title="Ronda abierta" />}
+                    </div>
+                    <div className="burbuja-cifras">
+                      <span><b>{c.aut}</b> autorizadas</span>
+                      {c.rec > 0 && <span className="c-bad"><b>{c.rec}</b> no autorizadas</span>}
+                      {c.ruta > 0 && <span className="c-ruta"><b>{c.ruta}</b> en ruta</span>}
+                    </div>
+                    <span className="burbuja-pie">{abre ? "Cerrar detalle" : "Ver detalle"}</span>
+                  </Link>
+                );
+              })}
+            </div>
+
+            {abierta && (
+              <div className="detalle-ronda">
+                <div className="panel-head">
+                  <div>
+                    <div className="panel-title">
+                      {rondasVisibles.find((r) => r.id === abierta)?.label ?? "Ronda"}
+                    </div>
+                    <div className="panel-sub">{filas.length} inspección(es) en este turno</div>
                   </div>
-                </span>
-                <span className="grupo-cifras">
-                  <span className="badge neutral">{rs.length} inspección(es)</span>
-                  {aut > 0 && <span className="badge ok">{aut} autorizadas</span>}
-                  {rec > 0 && <span className="badge bad">{rec} no autorizadas</span>}
-                  {ruta > 0 && <span className="badge warn">{ruta} en ruta</span>}
-                </span>
-              </summary>
-              <div className="grupo-cuerpo">
-                {rs.length ? <Tabla rs={rs} />
-                  : <div className="empty-state" style={{ padding: "22px 10px" }}>
-                      Esta ronda no tiene inspecciones que coincidan con los filtros.
-                    </div>}
+                  <Link className="btn btn-ghost btn-sm" href={enlace({ abierta: "" })}>Cerrar</Link>
+                </div>
+                {filas.length ? <Tabla rs={filas} />
+                  : <div className="empty-state">Esta ronda no tiene inspecciones que coincidan con los filtros.</div>}
               </div>
-            </details>
-          );
-        }) : <div className="stub"><h3>Sin rondas</h3><p>No hay rondas que coincidan con estos filtros.</p></div>
+            )}
+          </>
+        ) : <div className="stub"><h3>Sin rondas</h3><p>No hay rondas que coincidan con estos filtros.</p></div>
       ) : (
         filas.length ? <Tabla rs={filas} />
           : <div className="stub"><h3>Historial de inspecciones</h3><p>No hay inspecciones con estos filtros.</p></div>

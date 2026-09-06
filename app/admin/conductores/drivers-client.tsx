@@ -11,7 +11,7 @@
 // campo de texto a secas exige recordar el nombre exacto. Y tercero,
 // PAGINACIÓN: mil filas en una sola lista no se navegan, se sufren.
 
-import { useMemo, useRef, useState } from "react";
+import { Fragment, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { initials, fmtDateTime } from "@/lib/format";
@@ -32,7 +32,6 @@ type EnRuta = Record<string, { placa: string; desde: string | null }>;
 type YaOperaron = Record<string, { placa: string; autorizada: boolean | null }>;
 type Filtro = "todos" | "disponibles" | "operacion" | "operaron" | "inactivos";
 
-const POR_PAGINA = 20;
 
 export default function DriversClient({
   rows, photoMap, orgId, enRuta, yaOperaron, rondaLabel,
@@ -55,7 +54,6 @@ export default function DriversClient({
   const [recorte, setRecorte] = useState<{ driver: DriverRow; archivo: File } | null>(null);
 
   const [filtro, setFiltro] = useState<Filtro>("todos");
-  const [pagina, setPagina] = useState(1);
   const [sugiriendo, setSugiriendo] = useState(false);
 
   const show = (m: string) => { setToast(m); setTimeout(() => setToast(""), 2800); };
@@ -102,12 +100,26 @@ export default function DriversClient({
     return rows.filter((d) => d.full_name.toLowerCase().includes(t)).slice(0, 8);
   }, [rows, q]);
 
-  const totalPaginas = Math.max(1, Math.ceil(filtrados.length / POR_PAGINA));
-  const paginaSegura = Math.min(pagina, totalPaginas);
-  const list = filtrados.slice((paginaSegura - 1) * POR_PAGINA, paginaSegura * POR_PAGINA);
+  // A ESCALA: con más de cien conductores, paginar de veinte en veinte obliga a
+  // recorrer seis páginas para llegar a un apellido con M. La lista completa ya
+  // está en memoria, así que lo que hace falta no es cortarla sino poder
+  // saltar dentro de ella: un índice por inicial, como una agenda.
+  const inicial = (n: string) => {
+    const c = n.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "")[0]?.toUpperCase() ?? "#";
+    return /[A-Z]/.test(c) ? c : "#";
+  };
+  const porLetra = new Map<string, DriverRow[]>();
+  filtrados.forEach((d) => {
+    const l = inicial(d.full_name);
+    if (!porLetra.has(l)) porLetra.set(l, []);
+    porLetra.get(l)!.push(d);
+  });
+  const letras = Array.from(porLetra.keys()).sort();
+  const ABC = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+  const list = filtrados;
 
-  function cambiarFiltro(f: Filtro) { setFiltro(f); setPagina(1); }
-  function cambiarBusqueda(v: string) { setQ(v); setPagina(1); setSugiriendo(true); }
+  function cambiarFiltro(f: Filtro) { setFiltro(f); }
+  function cambiarBusqueda(v: string) { setQ(v); setSugiriendo(true); }
 
   async function reveal(d: DriverRow) {
     if (revealed[d.id]) { setRevealed((r) => { const n = { ...r }; delete n[d.id]; return n; }); return; }
@@ -196,7 +208,7 @@ export default function DriversClient({
                     const e = estadoDe(d);
                     return (
                       <button key={d.id} className="sugerencia"
-                        onMouseDown={(ev) => { ev.preventDefault(); setQ(d.full_name); setSugiriendo(false); setPagina(1); }}>
+                        onMouseDown={(ev) => { ev.preventDefault(); setQ(d.full_name); setSugiriendo(false); }}>
                         <span className="manage-avatar" style={{ width: 26, height: 26, padding: 0, fontSize: 10 }}>
                           {initials(d.full_name)}
                         </span>
@@ -230,14 +242,30 @@ export default function DriversClient({
           otra inspección: la regla la impone la base de datos, aquí sólo se muestra.
         </div>
 
+        <div className="indice-abc" role="navigation" aria-label="Saltar por inicial">
+          {ABC.map((l) => porLetra.has(l)
+            ? <a key={l} href={`#letra-${l}`} className="abc-letra">{l}</a>
+            : <span key={l} className="abc-letra vacia" aria-hidden="true">{l}</span>)}
+        </div>
+
         <div className="lista-unidades lista-personas">
-          {list.map((d) => {
+          {list.map((d, i) => {
             const photo = d.photo_path ? photoMap[d.photo_path] : null;
+            // Corte de inicial: el ancla a la que salta el raíl alfabético.
+            const letra = inicial(d.full_name);
+            const abreGrupo = i === 0 || inicial(list[i - 1].full_name) !== letra;
             return (
-              // Mismas tres zonas que la flota: identidad, ficha y acciones. Con
-              // setenta conductores, que la licencia de todos caiga en la misma
-              // vertical es lo que permite recorrer la lista sin releer.
-              <div key={d.id} className={"fila-unidad " + (!d.active ? "est-off" : enRuta[d.id] ? "est-ruta" : yaOperaron[d.id] ? "est-warn" : "est-ok")}>
+              <Fragment key={d.id}>
+              {abreGrupo && (
+                <div className="abc-corte" id={`letra-${letra}`}>
+                  <span className="l">{letra}</span>
+                  <span className="n">{porLetra.get(letra)?.length ?? 0}</span>
+                </div>
+              )}
+              {/* Mismas tres zonas que la flota: identidad, ficha y acciones.
+                  Que la licencia de todos caiga en la misma vertical es lo que
+                  permite recorrer la lista sin releer. */}
+              <div className={"fila-unidad " + (!d.active ? "est-off" : enRuta[d.id] ? "est-ruta" : yaOperaron[d.id] ? "est-warn" : "est-ok")}>
                 <div className="unidad-id">
                   <span className="manage-avatar" style={{ overflow: "hidden", padding: 0, width: 34, height: 34 }}>
                     {photo ? <img src={photo} alt="" className="drv-photo" /> : initials(d.full_name)}
@@ -290,6 +318,7 @@ export default function DriversClient({
                   </div>
                 )}
               </div>
+              </Fragment>
             );
           })}
           {list.length === 0 && (
@@ -301,19 +330,6 @@ export default function DriversClient({
           )}
         </div>
 
-        {totalPaginas > 1 && (
-          <div className="paginacion">
-            <div className="cell-sub">
-              {filtrados.length} conductor(es) · página {paginaSegura} de {totalPaginas}
-            </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button className="btn btn-ghost btn-sm" disabled={paginaSegura <= 1}
-                onClick={() => setPagina(paginaSegura - 1)}>← Anterior</button>
-              <button className="btn btn-ghost btn-sm" disabled={paginaSegura >= totalPaginas}
-                onClick={() => setPagina(paginaSegura + 1)}>Siguiente →</button>
-            </div>
-          </div>
-        )}
       </div>
 
       {(edit || creating) && <DriverForm driver={edit} onClose={() => { setEdit(null); setCreating(false); }} onSaved={(m) => { show(m); router.refresh(); }} />}

@@ -11,7 +11,7 @@
 // entrar. Y para las unidades retenidas hay vista rápida: todas sus novedades
 // con evidencia y quién las reportó, sin abandonar la lista.
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { fmtDate } from "@/lib/format";
@@ -19,6 +19,8 @@ import { friendlyError } from "@/lib/errors";
 import { useDialog } from "@/components/ui/dialogs";
 import { LIMITES, limpiarTexto, soloPlaca, soloDigitos, textoValido } from "@/lib/validation";
 import VehicleSheet from "@/components/admin/VehicleSheet";
+import { compressImage, AVATAR_PRESET } from "@/lib/image";
+import PhotoCropper from "@/components/PhotoCropper";
 
 export interface VehicleRow {
   id: string; plate: string; reference: string | null; model: string | null;
@@ -39,10 +41,11 @@ const AVAIL: Record<string, { cls: string; dot: string; label: string; franja: s
 type Filtro = "todos" | "disponibles" | "novedades" | "bloqueados" | "hoy" | "ruta";
 
 export default function VehiclesClient({
-  rows, opsBy, roundLabel, inspeccionadosHoy, filtroInicial,
+  rows, opsBy, roundLabel, inspeccionadosHoy, filtroInicial, photoMap, orgId,
 }: {
   rows: VehicleRow[]; opsBy: Record<string, number>; roundLabel: string;
   inspeccionadosHoy: string[]; filtroInicial: string;
+  photoMap: Record<string, string>; orgId: string;
 }) {
   const supabase = createClient();
   const router = useRouter();
@@ -57,6 +60,9 @@ export default function VehiclesClient({
     (FILTROS_VALIDOS as string[]).includes(filtroInicial) ? (filtroInicial as Filtro) : "todos");
   // Vista rápida: la ficha completa de la unidad sin salir de la lista.
   const [ficha, setFicha] = useState<VehicleRow | null>(null);
+  // Foto elegida pendiente de encuadrar: se sube sólo tras confirmar el recorte.
+  const [recorte, setRecorte] = useState<{ veh: VehicleRow; archivo: File } | null>(null);
+  const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const show = (m: string) => { setToast(m); setTimeout(() => setToast(""), 2800); };
   const active = rows.filter((v) => v.status !== "archived");
@@ -149,6 +155,20 @@ export default function VehiclesClient({
     if (error) return show(friendlyError(error));
     show(`${v.plate} reintegrado a la flota`); router.refresh();
   }
+  async function uploadPhoto(v: VehicleRow, file: File) {
+    setBusy(v.id);
+    const foto = await compressImage(file, AVATAR_PRESET);
+    const path = `${orgId}/vehicles/${v.id}.jpg`;
+    const up = await supabase.storage
+      .from("vehicle-photos")
+      .upload(path, foto, { upsert: true, contentType: foto.type });
+    if (up.error) { setBusy(null); return show(friendlyError(up.error, "No fue posible subir la foto.")); }
+    const { error } = await supabase.from("vehicles").update({ photo_path: path }).eq("id", v.id);
+    setBusy(null);
+    if (error) return show(friendlyError(error));
+    show(`Foto de ${v.plate} actualizada`); router.refresh();
+  }
+
   async function del(v: VehicleRow, mode: "archive" | "hard") {
     if (mode === "hard") {
       const ok = await dialog.confirm({
@@ -201,54 +221,70 @@ export default function VehiclesClient({
           )}
         </div>
 
-        <div className="lista-unidades">
+        <div className="rejilla-flota">
           {list.map((v) => {
             const a = AVAIL[v.availability] ?? AVAIL.available;
-            const docs = [v.model && `Modelo ${v.model}`, v.operation_card && `T.Op. ${v.operation_card}`, v.insurance_expires && `Seguro ${fmtDate(v.insurance_expires)}`].filter(Boolean).join(" · ");
-            // Un solo aviso por unidad, el más apremiante: dos líneas de alerta
+            const foto = photoMap[v.id];
+            const docs = [v.model && `Modelo ${v.model}`, v.operation_card && `T.Op. ${v.operation_card}`].filter(Boolean).join(" · ");
+            // Un solo aviso por unidad, el más apremiante: dos alertas
             // compitiendo entre sí no priorizan nada.
             const aviso =
               v.availability === "admin_blocked" && v.admin_block_reason
                 ? { tono: "av-bad", texto: v.admin_block_reason }
                 : opsBy[v.id]
-                  ? { tono: "av-warn", texto: `${opsBy[v.id]} operación(es) abierta(s) sin registrar regreso` }
+                  ? { tono: "av-warn", texto: `${opsBy[v.id]} operación(es) sin registrar regreso` }
                   : v.availability === "issues"
                     ? { tono: "av-warn", texto: `${v.open_issue_count} novedad(es) sin resolver` }
                     : null;
             return (
-              <div key={v.id} className={"fila-unidad " + a.franja}>
-                <div className="unidad-id">
-                  <span className={"veh-dot " + a.dot} />
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="2" y="7" width="13" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.8" /><path d="M15 10h3.3a1 1 0 0 1 .85.47L21 14v3h-2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                  <span className="unidad-placa">{v.plate}</span>
+              <article key={v.id} className={"tarjeta-unidad " + a.franja}>
+                <div className="unidad-foto">
+                  {foto
+                    ? <img src={foto} alt={v.plate} />
+                    : <span className="unidad-sinfoto">{v.plate}</span>}
                   <span className={"badge " + a.cls}>{a.label}</span>
+                  <button className="unidad-camara" title="Cambiar foto de la unidad"
+                    disabled={busy === v.id} onClick={() => fileRefs.current[v.id]?.click()}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 8.5A1.5 1.5 0 0 1 4.5 7h2L8 5h8l1.5 2h2A1.5 1.5 0 0 1 21 8.5v9A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z"/>
+                      <circle cx="12" cy="13" r="3.2"/>
+                    </svg>
+                  </button>
+                  <input ref={(el) => { fileRefs.current[v.id] = el; }} type="file" accept="image/*" style={{ display: "none" }}
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) setRecorte({ veh: v, archivo: f }); e.target.value = ""; }} />
                 </div>
 
-                <div className="unidad-ficha">
-                  {docs && <span className="unidad-datos" title={docs}>{docs}</span>}
+                <div className="unidad-cuerpo">
+                  <div className="unidad-titulo">
+                    <span className="unidad-placa">{v.plate}</span>
+                    {docs && <span className="unidad-datos" title={docs}>{docs}</span>}
+                  </div>
+                  {aviso && <div className={"unidad-aviso " + aviso.tono}>{aviso.texto}</div>}
                 </div>
 
-                <div className="fila-acciones">
+                <div className="unidad-pie">
                   {/* Primero la pregunta que se hace de verdad al ver una unidad
                       retenida: por qué, desde cuándo y con qué evidencia. */}
                   <button className={"btn btn-sm " + (v.open_issue_count > 0 ? "btn-primary" : "btn-ghost")}
                     onClick={() => setFicha(v)}>
-                    {v.open_issue_count > 0 ? `Ver ${v.open_issue_count} novedad(es)` : "Vista rápida"}
+                    {v.open_issue_count > 0 ? "Ver novedades" : "Vista rápida"}
                   </button>
-                  <button className="btn btn-ghost btn-sm" title="Datos del vehículo" onClick={() => setEdit(v)}>Datos</button>
                   {v.availability === "out_of_service"
-                    ? <button className="btn btn-primary btn-sm" disabled={busy === v.id} onClick={() => reactivate(v)}>Reactivar</button>
+                    ? <button className="btn btn-ghost btn-sm" disabled={busy === v.id} onClick={() => reactivate(v)}>Reactivar</button>
                     : v.admin_blocked
-                      ? <button className="btn btn-primary btn-sm" disabled={busy === v.id} onClick={() => unblock(v)}>Desbloquear</button>
-                      : <button className="btn btn-ghost btn-sm" disabled={busy === v.id} onClick={() => block(v)}>Bloquear</button>}
-                  {v.availability === "issues" && <button className="btn btn-ghost btn-sm" disabled={busy === v.id} onClick={() => resolveAll(v)}>Resolver y liberar</button>}
-                  {v.availability === "inspected" && <button className="btn btn-ghost btn-sm" title="Liberar para nueva inspección" disabled={busy === v.id} onClick={() => release(v)}>Liberar</button>}
-                  <button className="manage-remove" title="Archivar" onClick={() => del(v, "archive")}>⧉</button>
-                  <button className="manage-remove" title="Eliminar definitivamente" onClick={() => del(v, "hard")}>✕</button>
+                      ? <button className="btn btn-ghost btn-sm" disabled={busy === v.id} onClick={() => unblock(v)}>Desbloquear</button>
+                      : v.availability === "issues"
+                        ? <button className="btn btn-ghost btn-sm" disabled={busy === v.id} onClick={() => resolveAll(v)}>Resolver</button>
+                        : v.availability === "inspected"
+                          ? <button className="btn btn-ghost btn-sm" title="Liberar para nueva inspección" disabled={busy === v.id} onClick={() => release(v)}>Liberar</button>
+                          : <button className="btn btn-ghost btn-sm" disabled={busy === v.id} onClick={() => block(v)}>Bloquear</button>}
+                  <div className="unidad-mas">
+                    <button className="manage-remove" title="Datos del vehículo" onClick={() => setEdit(v)}>✎</button>
+                    <button className="manage-remove" title="Archivar" onClick={() => del(v, "archive")}>⧉</button>
+                    <button className="manage-remove" title="Eliminar definitivamente" onClick={() => del(v, "hard")}>✕</button>
+                  </div>
                 </div>
-
-                {aviso && <div className={"unidad-aviso " + aviso.tono}>{aviso.texto}</div>}
-              </div>
+              </article>
             );
           })}
           {list.length === 0 && (
@@ -276,6 +312,14 @@ export default function VehiclesClient({
             ))}
           </div>
         </div>
+      )}
+
+      {recorte && (
+        <PhotoCropper
+          archivo={recorte.archivo}
+          onCancelar={() => setRecorte(null)}
+          onListo={(recortada) => { const v = recorte.veh; setRecorte(null); uploadPhoto(v, recortada); }}
+        />
       )}
 
       {ficha && <VehicleSheet vehicleId={ficha.id} plate={ficha.plate} onClose={() => setFicha(null)} />}
