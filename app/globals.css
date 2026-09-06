@@ -505,7 +505,8 @@ body.admin-mode #driverShell{display:none !important;}
 .data-table td{padding:12px 10px; border-bottom:1px solid var(--line-soft); vertical-align:middle;}
 .data-table tr:last-child td{border-bottom:none;}
 .data-table tr:hover td{background:var(--bg);}
-.cell-veh{font-weight:700; display:flex; align-items:center; gap:8px;}
+.cell-veh{font-weight:700; line-height:1.3;}
+.cell-veh .cell-sub{font-weight:500; margin-top:2px;}
 .cell-sub{color:var(--muted); font-size:11.5px;}
 
 /* list rows (novedades pendientes) */
@@ -534,7 +535,7 @@ body.admin-mode #driverShell{display:none !important;}
 /* ---------- Simple manage lists (vehículos, conductores, config) ---------- */
 .manage-list{display:flex; flex-direction:column; gap:8px; margin-bottom:14px;}
 .manage-row{
-  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
   padding:12px 14px; border:1.5px solid var(--line); border-radius:12px; background:#fff;
 }
 .manage-row-sm{padding:9px 12px; border-radius:10px;}
@@ -1029,26 +1030,20 @@ img, svg, video, canvas { max-width: 100%; height: auto; }
 .ctx-item{ padding:0 4px; }
 .ctx-item:first-child{ border-right:1px solid #C6DDF5; }
 
-/* Admin manage rows — wrap cleanly on mobile */
-.manage-row{
-  display:flex !important;
-  flex-wrap:wrap !important;
-  align-items:center !important;
-  gap:10px !important;
-}
+/* Admin manage rows — el apilado es SÓLO para pantallas estrechas. Estuvo
+   suelto en la hoja, sin media query, y su align-items:center vencía al
+   alineado en columna de Vehículos y Rondas: de ahí el vacío lateral. */
 .manage-row-main{
-  flex:1 1 180px !important;
   min-width:0;
   display:flex;
   align-items:center;
   flex-wrap:wrap;
   gap:8px;
 }
-.manage-row > div:last-child{
-  display:flex !important;
-  gap:8px;
-  flex-shrink:0;
-  margin-left:auto;
+@media (max-width:900px){
+  .manage-row{ align-items:stretch; }
+  .manage-row-main{ flex:1 1 180px; }
+  .manage-row > .fila-acciones{ width:100%; }
 }
 .manage-add-row{
   display:flex !important;
@@ -2410,3 +2405,146 @@ input::placeholder, textarea::placeholder{ color:var(--muted); opacity:1; }
   display:block; font-size:11.5px; font-weight:600; color:var(--muted);
   margin-top:2px; letter-spacing:.2px;
 }
+
+/* =========================================================
+   MÓDULOS OPERATIVOS — orden visual
+   ---------------------------------------------------------
+   Inspecciones, Vehículos, Rondas y Reportes mostraban los mismos datos con
+   tres maquetaciones distintas y sin anchos de columna: cada tabla se
+   autodimensionaba, los nombres partían en dos líneas y la vista se leía como
+   una hoja de cálculo derramada. Aquí viven las piezas comunes: una rejilla de
+   columnas fija, una franja de estado a la izquierda de cada fila y una altura
+   de fila constante. Lo que se busca es que el ojo baje por una columna sin
+   perder el renglón.
+   ========================================================= */
+
+/* ------------------------------------------------- tabla operativa ------ */
+.tabla-op{ overflow-x:auto; border-radius:12px; }
+.tabla-op table{ width:100%; border-collapse:separate; border-spacing:0; table-layout:fixed; min-width:880px; }
+.tabla-op thead th{
+  position:sticky; top:0; z-index:1;
+  background:var(--bg); color:var(--muted);
+  font-size:10.5px; font-weight:700; letter-spacing:.5px; text-transform:uppercase;
+  text-align:left; padding:9px 12px; border-bottom:1px solid var(--line);
+  white-space:nowrap;
+}
+.tabla-op tbody td{
+  padding:9px 12px; border-bottom:1px solid var(--line-soft);
+  vertical-align:middle; font-size:13px; line-height:1.35;
+}
+.tabla-op tbody tr:last-child td{ border-bottom:none; }
+.tabla-op tbody tr:hover td{ background:var(--blue-soft); }
+
+/* Franja de estado: el indicador más barato de leer y el que impide perderse
+   al recorrer una ronda larga. Va en la primera celda, no en la fila, para
+   que sobreviva al borde redondeado del contenedor. */
+.tabla-op tbody td:first-child{ box-shadow:inset 3px 0 0 var(--line); }
+.tabla-op tr.est-ok    td:first-child{ box-shadow:inset 3px 0 0 var(--green); }
+.tabla-op tr.est-bad   td:first-child{ box-shadow:inset 3px 0 0 var(--red); }
+.tabla-op tr.est-ruta  td:first-child{ box-shadow:inset 3px 0 0 var(--blue); }
+.tabla-op tr.est-warn  td:first-child{ box-shadow:inset 3px 0 0 var(--orange); }
+.tabla-op tr.est-nula  td:first-child{ box-shadow:inset 3px 0 0 #94A3B8; }
+
+/* Una sola línea por dato: el recorte con puntos suspensivos es preferible al
+   salto de línea, que es lo que hacía crecer las filas a tres alturas. */
+.celda-corta{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+/* Una insignia o un contador partidos en dos renglones descuadran toda la fila
+   y devuelven la tabla al aspecto de hoja de cálculo derramada. */
+.tabla-op .badge{ white-space:nowrap; }
+.tabla-op td > .cell-sub{ white-space:nowrap; }
+.celda-num{ text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.celda-fecha{ white-space:nowrap; font-variant-numeric:tabular-nums; color:var(--muted); font-size:12.2px; }
+
+.placa-celda{ font-family:var(--font-display),system-ui,sans-serif; font-weight:700;
+  font-size:13.4px; letter-spacing:.3px; color:var(--navy); }
+.placa-celda .origen{ display:block; font-weight:500; font-size:11px; color:var(--muted);
+  letter-spacing:0; margin-top:1px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+.desenlace{ display:flex; flex-direction:column; gap:3px; min-width:0; }
+.desenlace .motivo{ font-size:11.5px; color:var(--muted); overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap; }
+
+/* --------------------------------------------- fila de unidad (flota) --- */
+/* Antes cada vehículo era una tarjeta en columna con el contenido centrado:
+   media tarjeta en blanco y las acciones flotando a la derecha. Ahora son tres
+   zonas de ancho definido —identidad, ficha, acciones— en una sola banda. */
+.lista-unidades{ display:flex; flex-direction:column; gap:8px; }
+.fila-unidad{
+  display:grid; grid-template-columns:294px minmax(0,1fr) auto;
+  align-items:center; gap:14px;
+  padding:11px 14px 11px 16px; background:#fff;
+  border:1px solid var(--line); border-radius:12px;
+  border-left:3px solid var(--line);
+  transition:border-color .12s, box-shadow .12s;
+}
+.fila-unidad:hover{ border-color:rgba(30,99,233,.25); box-shadow:0 4px 14px rgba(11,37,69,.06); }
+.fila-unidad.est-ok{   border-left-color:var(--green); }
+.fila-unidad.est-warn{ border-left-color:var(--orange); }
+.fila-unidad.est-bad{  border-left-color:var(--red); }
+.fila-unidad.est-ruta{ border-left-color:var(--blue); }
+.fila-unidad.est-off{  border-left-color:#94A3B8; }
+
+.unidad-id{ display:flex; align-items:center; gap:9px; min-width:0; }
+.unidad-id svg{ color:var(--blue); flex-shrink:0; }
+.unidad-placa{ font-family:var(--font-display),system-ui,sans-serif; font-weight:700;
+  font-size:14.5px; letter-spacing:.3px; color:var(--navy); }
+.unidad-ficha{ display:flex; flex-direction:column; gap:2px; min-width:0; }
+.unidad-datos{ font-size:11.8px; color:var(--muted);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+/* El aviso —por qué la unidad está retenida, por qué el conductor no puede
+   arrancar otra inspección— es lo más valioso de la fila y no cabe en la
+   columna de ficha cuando el panel se estrecha. Va en banda propia, a lo ancho:
+   la fila sin incidencia sigue midiendo una línea y la que la tiene se
+   distingue por su altura, que es exactamente lo que interesa señalar. */
+.unidad-aviso{
+  grid-column:1/-1; font-size:12.2px; font-weight:600;
+  margin-top:9px; padding-top:8px; border-top:1px dashed var(--line);
+}
+.unidad-aviso.av-warn{ color:var(--orange); } .unidad-aviso.av-bad{ color:var(--red); }
+.unidad-aviso.av-info{ color:var(--blue); }
+.fila-acciones{ display:flex; gap:6px; align-items:center; flex-shrink:0; }
+
+/* Una insignia partida en dos renglones descuadra la fila entera. */
+.fila-unidad .badge{ white-space:nowrap; }
+
+/* Las personas necesitan más columna que las placas: un nombre completo con
+   apellidos compuestos no cabe donde cabe «GMN-415». Y el estado va en columna
+   propia —no pegado al nombre— para que las insignias caigan todas en la misma
+   vertical y el turno se lea de un barrido, sin ir cazándolas por la fila. */
+.lista-personas .fila-unidad{ grid-template-columns:minmax(210px,344px) 124px minmax(150px,1fr) auto; }
+.lista-personas .unidad-estado{ display:flex; }
+
+@media (max-width:900px){
+  .fila-unidad,
+  .lista-personas .fila-unidad{ grid-template-columns:1fr; gap:9px; }
+  .fila-acciones{ flex-wrap:wrap; }
+}
+
+/* --------------------------------------------- rejilla de placas -------- */
+/* Las placas de una ronda eran una bolsa de pastillas que se ajustaba sola:
+   con once unidades no había forma de recorrerlas. En rejilla, la placa y su
+   hora quedan en columna y el ojo puede bajar. */
+.rejilla-placas{
+  display:grid; grid-template-columns:repeat(auto-fill,minmax(152px,1fr));
+  gap:6px; margin-top:10px;
+}
+.placa-casilla{
+  display:flex; align-items:baseline; justify-content:space-between; gap:8px;
+  padding:6px 10px; border:1px solid var(--line-soft); border-radius:8px;
+  background:var(--bg); min-width:0;
+}
+.placa-casilla .p{ font-family:var(--font-display),system-ui,sans-serif; font-weight:700;
+  font-size:12.4px; letter-spacing:.3px; color:var(--navy); white-space:nowrap; }
+.placa-casilla .h{ font-size:10.8px; color:var(--muted); font-variant-numeric:tabular-nums;
+  white-space:nowrap; }
+.placa-casilla.sin{ border-style:dashed; background:#fff; }
+.placa-casilla.mala{ background:var(--red-soft); border-color:rgba(198,66,60,.22); }
+.placa-casilla.mala .p{ color:var(--red); }
+
+/* ------------------------------------------------ cabecera de grupo ----- */
+/* La cabecera de ronda repartía sus cifras a lo ancho sin alinearse entre
+   grupos. Se fija en dos zonas para que los recuentos caigan en la misma
+   vertical en todas las rondas. */
+.grupo-ronda > summary{ align-items:center; }
+.grupo-cifras{ display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; margin-left:auto; }
+.grupo-cifras .badge{ white-space:nowrap; }

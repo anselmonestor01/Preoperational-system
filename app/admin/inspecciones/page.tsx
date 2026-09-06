@@ -17,7 +17,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { fmtDateTime, fmtKm } from "@/lib/format";
-import { motivoDe, etiquetaResultado } from "@/lib/motivos";
+import { motivoDe, etiquetaResultado, FRANJA } from "@/lib/motivos";
 import InspectionActions from "./inspection-actions";
 
 export const dynamic = "force-dynamic";
@@ -130,12 +130,20 @@ export default async function InspeccionesPage({ searchParams }: { searchParams:
   filas.forEach((r) => { (porRonda[r.round_id ?? "sin"] ??= []).push(r); });
 
   // ---------------------------------------------------------------- vista --
+  // Anchos declarados: sin ellos cada tabla se autodimensionaba y las columnas
+  // de una ronda no caían en la misma vertical que las de la siguiente, que es
+  // lo que hacía ilegible el historial al recorrerlo de arriba abajo.
   const Tabla = ({ rs }: { rs: any[] }) => (
-    <div style={{ overflowX: "auto" }}>
-      <table className="data-table">
+    <div className="tabla-op">
+      <table>
+        <colgroup>
+          <col style={{ width: "13%" }} /><col style={{ width: "16%" }} />
+          <col style={{ width: "16%" }} /><col style={{ width: "12%" }} />
+          <col style={{ width: "12%" }} /><col /><col style={{ width: "92px" }} />
+        </colgroup>
         <thead><tr>
           <th>Vehículo</th><th>Conductor</th><th>Fecha / hora</th>
-          <th>Km</th><th>Checklist</th><th>Desenlace</th><th></th>
+          <th className="celda-num">Kilometraje</th><th>Checklist</th><th>Desenlace</th><th></th>
         </tr></thead>
         <tbody>
           {rs.map((r) => {
@@ -143,28 +151,29 @@ export default async function InspeccionesPage({ searchParams }: { searchParams:
             const m = motivoDe({ ...r, novedades_abiertas: c.abiertas, novedades_total: c.totales });
             const res = etiquetaResultado(r.result);
             return (
-              <tr key={r.id}>
-                <td className="cell-veh">
-                  {r.vehicle_plate}
-                  <div className="cell-sub">
-                    {r.device_label ?? (r.device_id ? "Dispositivo" : "sin equipo")}
-                  </div>
+              <tr key={r.id} className={FRANJA[m.tono]}>
+                <td>
+                  <span className="placa-celda">{r.vehicle_plate}
+                    <span className="origen">{r.device_label ?? (r.device_id ? "Dispositivo" : "sin equipo")}</span>
+                  </span>
                 </td>
-                <td>{r.driver_name}</td>
-                <td className="cell-sub" style={{ whiteSpace: "nowrap" }}>{fmtDateTime(r.submitted_at)}</td>
-                <td className="cell-sub" style={{ whiteSpace: "nowrap" }}>
-                  {fmtKm(r.km_inicial)}{r.km_final != null && <> → {fmtKm(r.km_final)}</>}
-                  {r.recorrido != null && <div className="cell-sub">{fmtKm(r.recorrido)} recorridos</div>}
+                <td className="celda-corta" title={r.driver_name ?? ""}>{r.driver_name}</td>
+                <td className="celda-fecha">{fmtDateTime(r.submitted_at)}</td>
+                <td className="celda-num">
+                  {fmtKm(r.km_inicial)}
+                  {r.recorrido != null && <div className="cell-sub">+{fmtKm(r.recorrido)}</div>}
                 </td>
                 <td>
                   <span className={"badge " + res.tono}>{res.texto}</span>
                   {(r.bad_count || r.warn_count) ? (
-                    <div className="cell-sub">{r.bad_count ?? 0} malo · {r.warn_count ?? 0} regular</div>
+                    <div className="cell-sub">{r.bad_count ?? 0} malo · {r.warn_count ?? 0} reg.</div>
                   ) : null}
                 </td>
-                <td style={{ minWidth: 210 }}>
-                  <span className={"badge " + m.tono}>{m.titulo}</span>
-                  <div className="cell-sub">{m.detalle}</div>
+                <td>
+                  <div className="desenlace">
+                    <span className={"badge " + m.tono} style={{ alignSelf: "flex-start" }}>{m.titulo}</span>
+                    <span className="motivo" title={m.detalle}>{m.detalle}</span>
+                  </div>
                 </td>
                 <td><InspectionActions id={r.id} /></td>
               </tr>

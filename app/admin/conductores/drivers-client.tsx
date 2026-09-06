@@ -230,60 +230,65 @@ export default function DriversClient({
           otra inspección: la regla la impone la base de datos, aquí sólo se muestra.
         </div>
 
-        <div className="manage-list">
+        <div className="lista-unidades lista-personas">
           {list.map((d) => {
             const photo = d.photo_path ? photoMap[d.photo_path] : null;
             return (
-              <div key={d.id} className="manage-row" style={{ flexDirection: "column", alignItems: "stretch", gap: 8 }}>
-                <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-                  <div className="manage-row-main" style={{ flex: "1 1 200px" }}>
-                    <span className="manage-avatar" style={{ overflow: "hidden", padding: 0, width: 34, height: 34 }}>
-                      {photo ? <img src={photo} alt="" className="drv-photo" /> : initials(d.full_name)}
-                    </span>
-                    <span>{d.full_name}</span>
-                    {distintivo(d, homonimos) && (
-                      <span className="badge neutral" style={{ marginLeft: 6, fontWeight: 600 }}>
-                        {distintivo(d, homonimos)}
-                      </span>
-                    )}
-                    {!d.active ? <span className="badge bad" style={{ marginLeft: 6 }}>Inactivo</span>
-                      : enRuta[d.id] ? <span className="badge info" style={{ marginLeft: 6 }}>En operación</span>
-                      : yaOperaron[d.id] ? <span className="badge warn" style={{ marginLeft: 6 }}>Ya operó</span>
-                      : <span className="badge ok" style={{ marginLeft: 6 }}>Disponible</span>}
-                    <span className="badge info" style={{ marginLeft: 6, fontFamily: "monospace", letterSpacing: 1 }}>
-                      PIN {revealed[d.id] ?? "••••"}
-                    </span>
-                    <button className="btn btn-ghost btn-sm" disabled={busy === d.id} onClick={() => reveal(d)}>{revealed[d.id] ? "Ocultar" : "Mostrar PIN"}</button>
-                  </div>
-                  <div style={{ display: "flex", gap: 4 }}>
-                    <button className="manage-remove" title="Marcar inactivo" onClick={() => del(d, "archive")}>⧉</button>
-                    <button className="manage-remove" title="Eliminar definitivamente" onClick={() => del(d, "hard")}>✕</button>
-                  </div>
+              // Mismas tres zonas que la flota: identidad, ficha y acciones. Con
+              // setenta conductores, que la licencia de todos caiga en la misma
+              // vertical es lo que permite recorrer la lista sin releer.
+              <div key={d.id} className={"fila-unidad " + (!d.active ? "est-off" : enRuta[d.id] ? "est-ruta" : yaOperaron[d.id] ? "est-warn" : "est-ok")}>
+                <div className="unidad-id">
+                  <span className="manage-avatar" style={{ overflow: "hidden", padding: 0, width: 34, height: 34 }}>
+                    {photo ? <img src={photo} alt="" className="drv-photo" /> : initials(d.full_name)}
+                  </span>
+                  <span className="celda-corta" style={{ fontWeight: 600, color: "var(--navy)" }} title={d.full_name}>{d.full_name}</span>
+                  {distintivo(d, homonimos) && (
+                    <span className="badge neutral" style={{ fontWeight: 600 }}>{distintivo(d, homonimos)}</span>
+                  )}
                 </div>
+
+                <div className="unidad-estado">
+                  {!d.active ? <span className="badge bad">Inactivo</span>
+                    : enRuta[d.id] ? <span className="badge info">En operación</span>
+                    : yaOperaron[d.id] ? <span className="badge warn">Ya operó</span>
+                    : <span className="badge ok">Disponible</span>}
+                </div>
+
+                <div className="unidad-ficha">
+                  <span className="unidad-datos">
+                    Licencia {d.license ? d.license : <span style={{ color: "var(--orange)" }}>sin registrar</span>}
+                    {" · WhatsApp "}{d.whatsapp ? d.whatsapp : <span style={{ color: "var(--orange)" }}>sin registrar</span>}
+                    {" · PIN "}<b style={{ fontFamily: "monospace", letterSpacing: 1 }}>{revealed[d.id] ?? "••••"}</b>
+                  </span>
+                </div>
+
+                <div className="fila-acciones">
+                  <button className="btn btn-ghost btn-sm" disabled={busy === d.id} onClick={() => reveal(d)}>{revealed[d.id] ? "Ocultar PIN" : "Ver PIN"}</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setEdit(d)}>Editar</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setPinFor(d)}>Cambiar PIN</button>
+                  <button className="btn btn-ghost btn-sm" disabled={busy === d.id} onClick={() => fileRefs.current[d.id]?.click()}>Foto</button>
+                  <input ref={(el) => { fileRefs.current[d.id] = el; }} type="file" accept="image/*" style={{ display: "none" }}
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) setRecorte({ driver: d, archivo: f }); e.target.value = ""; }} />
+                  <button className="manage-remove" title={d.active ? "Marcar inactivo" : "Marcar activo"} onClick={() => del(d, "archive")}>⧉</button>
+                  <button className="manage-remove" title="Eliminar definitivamente" onClick={() => del(d, "hard")}>✕</button>
+                </div>
+
+                {/* Por qué el motor de datos le impide arrancar otra inspección. */}
                 {enRuta[d.id] && (
-                  <div className="cell-sub" style={{ color: "var(--blue)" }}>
+                  <div className="unidad-aviso av-info">
                     Salió con <b>{enRuta[d.id].placa}</b> {antiguedad(horasDesde(enRuta[d.id].desde))}
-                    {enRuta[d.id].desde ? ` (${fmtDateTime(enRuta[d.id].desde)})` : ""} y no ha
-                    registrado el regreso. No puede iniciar otra inspección hasta cerrarla.
+                    {enRuta[d.id].desde ? ` (${fmtDateTime(enRuta[d.id].desde)})` : ""} y no ha registrado
+                    el regreso. No puede iniciar otra inspección hasta cerrarla.
                   </div>
                 )}
                 {!enRuta[d.id] && yaOperaron[d.id] && (
-                  <div className="cell-sub" style={{ color: "var(--orange)" }}>
+                  <div className="unidad-aviso av-warn">
                     Ya cumplió su turno en esta ronda con <b>{yaOperaron[d.id].placa}</b>
                     {yaOperaron[d.id].autorizada === false ? " (no autorizada)" : ""}.
                     Podrá volver a operar cuando se abra la ronda siguiente.
                   </div>
                 )}
-                <div className="cell-sub">Licencia N.º: {d.license ? d.license : <span style={{ color: "var(--orange)" }}>sin registrar</span>}</div>
-                <div className="cell-sub">WhatsApp: {d.whatsapp ? d.whatsapp : <span style={{ color: "var(--orange)" }}>sin registrar</span>}</div>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <button className="btn btn-ghost btn-sm" onClick={() => setEdit(d)}>Editar datos</button>
-                  <button className="btn btn-ghost btn-sm" onClick={() => setPinFor(d)}>Cambiar PIN</button>
-                  <button className="btn btn-ghost btn-sm" disabled={busy === d.id} onClick={() => fileRefs.current[d.id]?.click()}>Foto</button>
-                  <input ref={(el) => { fileRefs.current[d.id] = el; }} type="file" accept="image/*" style={{ display: "none" }}
-                    onChange={(e) => { const f = e.target.files?.[0]; if (f) setRecorte({ driver: d, archivo: f }); e.target.value = ""; }} />
-                  <button className="btn btn-ghost btn-sm" disabled={busy === d.id} onClick={() => toggleActive(d)}>{d.active ? "Marcar inactivo" : "Marcar activo"}</button>
-                </div>
               </div>
             );
           })}

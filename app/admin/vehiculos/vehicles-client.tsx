@@ -27,13 +27,13 @@ export interface VehicleRow {
   availability: string; open_issue_count: number; current_round_inspection_id: string | null;
 }
 
-const AVAIL: Record<string, { cls: string; dot: string; label: string }> = {
-  available: { cls: "ok", dot: "ok", label: "Disponible" },
-  admin_blocked: { cls: "bad", dot: "bad", label: "Bloqueado (admin)" },
-  issues: { cls: "warn", dot: "warn", label: "Con novedades" },
-  inspected: { cls: "info", dot: "warn", label: "Ya inspeccionado" },
-  out_of_service: { cls: "neutral", dot: "off", label: "Fuera de servicio" },
-  archived: { cls: "neutral", dot: "off", label: "Archivado" },
+const AVAIL: Record<string, { cls: string; dot: string; label: string; franja: string }> = {
+  available:     { cls: "ok",      dot: "ok",   label: "Disponible",        franja: "est-ok" },
+  admin_blocked: { cls: "bad",     dot: "bad",  label: "Bloqueado (admin)", franja: "est-bad" },
+  issues:        { cls: "warn",    dot: "warn", label: "Con novedades",     franja: "est-warn" },
+  inspected:     { cls: "info",    dot: "warn", label: "Ya inspeccionado",  franja: "est-ruta" },
+  out_of_service:{ cls: "neutral", dot: "off",  label: "Fuera de servicio", franja: "est-off" },
+  archived:      { cls: "neutral", dot: "off",  label: "Archivado",         franja: "est-off" },
 };
 
 type Filtro = "todos" | "disponibles" | "novedades" | "bloqueados" | "hoy" | "ruta";
@@ -201,44 +201,53 @@ export default function VehiclesClient({
           )}
         </div>
 
-        <div className="manage-list">
+        <div className="lista-unidades">
           {list.map((v) => {
             const a = AVAIL[v.availability] ?? AVAIL.available;
             const docs = [v.model && `Modelo ${v.model}`, v.operation_card && `T.Op. ${v.operation_card}`, v.insurance_expires && `Seguro ${fmtDate(v.insurance_expires)}`].filter(Boolean).join(" · ");
+            // Un solo aviso por unidad, el más apremiante: dos líneas de alerta
+            // compitiendo entre sí no priorizan nada.
+            const aviso =
+              v.availability === "admin_blocked" && v.admin_block_reason
+                ? { tono: "av-bad", texto: v.admin_block_reason }
+                : opsBy[v.id]
+                  ? { tono: "av-warn", texto: `${opsBy[v.id]} operación(es) abierta(s) sin registrar regreso` }
+                  : v.availability === "issues"
+                    ? { tono: "av-warn", texto: `${v.open_issue_count} novedad(es) sin resolver` }
+                    : null;
             return (
-              <div key={v.id} className="manage-row" style={{ flexDirection: "column", alignItems: "stretch", gap: 8 }}>
-                <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-                  <div className="manage-row-main" style={{ flex: "1 1 200px" }}>
-                    <span className={"veh-dot " + a.dot} />
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="2" y="7" width="13" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.8" /><path d="M15 10h3.3a1 1 0 0 1 .85.47L21 14v3h-2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                    <span>{v.plate}</span>
-                    <span className={"badge " + a.cls} style={{ marginLeft: 6 }}>{a.label}</span>
-                  </div>
-                  <div style={{ display: "flex", gap: 4 }}>
-                    <button className="manage-remove" title="Archivar" onClick={() => del(v, "archive")}>⧉</button>
-                    <button className="manage-remove" title="Eliminar definitivamente" onClick={() => del(v, "hard")}>✕</button>
-                  </div>
+              <div key={v.id} className={"fila-unidad " + a.franja}>
+                <div className="unidad-id">
+                  <span className={"veh-dot " + a.dot} />
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="2" y="7" width="13" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.8" /><path d="M15 10h3.3a1 1 0 0 1 .85.47L21 14v3h-2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                  <span className="unidad-placa">{v.plate}</span>
+                  <span className={"badge " + a.cls}>{a.label}</span>
                 </div>
-                {docs && <div className="cell-sub">{docs}</div>}
-                {v.availability === "admin_blocked" && v.admin_block_reason && <div className="cell-sub" style={{ color: "var(--red)" }}>{v.admin_block_reason}</div>}
-                {v.availability === "issues" && <div className="cell-sub" style={{ color: "var(--orange)" }}>{v.open_issue_count} novedad(es) sin resolver</div>}
-                {opsBy[v.id] ? <div className="cell-sub" style={{ color: "var(--orange)", fontWeight: 600 }}>{opsBy[v.id]} operación(es) abierta(s) sin registrar regreso</div> : null}
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+
+                <div className="unidad-ficha">
+                  {docs && <span className="unidad-datos" title={docs}>{docs}</span>}
+                </div>
+
+                <div className="fila-acciones">
                   {/* Primero la pregunta que se hace de verdad al ver una unidad
                       retenida: por qué, desde cuándo y con qué evidencia. */}
                   <button className={"btn btn-sm " + (v.open_issue_count > 0 ? "btn-primary" : "btn-ghost")}
                     onClick={() => setFicha(v)}>
                     {v.open_issue_count > 0 ? `Ver ${v.open_issue_count} novedad(es)` : "Vista rápida"}
                   </button>
-                  <button className="btn btn-ghost btn-sm" onClick={() => setEdit(v)}>Datos del vehículo</button>
+                  <button className="btn btn-ghost btn-sm" title="Datos del vehículo" onClick={() => setEdit(v)}>Datos</button>
                   {v.availability === "out_of_service"
                     ? <button className="btn btn-primary btn-sm" disabled={busy === v.id} onClick={() => reactivate(v)}>Reactivar</button>
                     : v.admin_blocked
                       ? <button className="btn btn-primary btn-sm" disabled={busy === v.id} onClick={() => unblock(v)}>Desbloquear</button>
                       : <button className="btn btn-ghost btn-sm" disabled={busy === v.id} onClick={() => block(v)}>Bloquear</button>}
-                  {v.availability === "issues" && <button className="btn btn-primary btn-sm" disabled={busy === v.id} onClick={() => resolveAll(v)}>Resolver y liberar</button>}
-                  {v.availability === "inspected" && <button className="btn btn-ghost btn-sm" disabled={busy === v.id} onClick={() => release(v)}>Liberar para nueva inspección</button>}
+                  {v.availability === "issues" && <button className="btn btn-ghost btn-sm" disabled={busy === v.id} onClick={() => resolveAll(v)}>Resolver y liberar</button>}
+                  {v.availability === "inspected" && <button className="btn btn-ghost btn-sm" title="Liberar para nueva inspección" disabled={busy === v.id} onClick={() => release(v)}>Liberar</button>}
+                  <button className="manage-remove" title="Archivar" onClick={() => del(v, "archive")}>⧉</button>
+                  <button className="manage-remove" title="Eliminar definitivamente" onClick={() => del(v, "hard")}>✕</button>
                 </div>
+
+                {aviso && <div className={"unidad-aviso " + aviso.tono}>{aviso.texto}</div>}
               </div>
             );
           })}

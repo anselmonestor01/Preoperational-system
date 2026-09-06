@@ -124,3 +124,19 @@ export function etiquetaResultado(result: string | null): { tono: TonoMotivo; te
   if (result === "malo") return { tono: "bad", texto: "Malo" };
   return { tono: "neutral", texto: "—" };
 }
+
+/**
+ * Clase de la franja de estado que llevan las filas de tabla y de lista.
+ *
+ * Vive aquí, junto al motivo que la justifica, porque el color de la franja y
+ * la frase que la acompaña tienen que decir lo mismo: si el historial pinta una
+ * fila de verde y el reporte la pinta de ámbar, el panel deja de ser una fuente
+ * de verdad y pasa a ser una opinión por pantalla.
+ */
+export const FRANJA: Record<TonoMotivo, string> = {
+  ok: "est-ok",
+  warn: "est-warn",
+  bad: "est-bad",
+  info: "est-ruta",
+  neutral: "est-nula",
+};

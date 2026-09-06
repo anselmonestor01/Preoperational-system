@@ -10,7 +10,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { fmtDateTime, fmtKm } from "@/lib/format";
-import { motivoDe } from "@/lib/motivos";
+import { motivoDe, FRANJA } from "@/lib/motivos";
 import EvidenceGallery from "@/components/EvidenceGallery";
 import ExportButton from "./export-button";
 
@@ -180,29 +180,37 @@ export default async function ReportesPage({
   const TablaResumen = ({ g, titulo, enlace }: {
     g: typeof porVehiculo; titulo: string; enlace: (id: string) => string;
   }) => (
-    <div style={{ overflowX: "auto" }}>
-      <table className="data-table">
+    <div className="tabla-op">
+      <table>
+        <colgroup>
+          <col style={{ width: "20%" }} /><col style={{ width: "9%" }} /><col style={{ width: "8%" }} />
+          <col style={{ width: "10%" }} /><col style={{ width: "11%" }} /><col style={{ width: "11%" }} />
+          <col /><col style={{ width: "14%" }} /><col style={{ width: "96px" }} />
+        </colgroup>
         <thead><tr>
-          <th>{titulo}</th><th>Operaciones</th><th>Rondas</th>
-          <th>Autorizadas</th><th>No autorizadas</th><th>Recorrido</th>
+          <th>{titulo}</th><th className="celda-num">Operaciones</th><th className="celda-num">Rondas</th>
+          <th className="celda-num">Autorizadas</th><th className="celda-num">No autoriz.</th>
+          <th className="celda-num">Recorrido</th>
           <th>Novedades</th><th>Última</th><th></th>
         </tr></thead>
         <tbody>
           {g.map((x) => (
-            <tr key={x.id}>
-              <td className="cell-veh">{x.nombre}</td>
-              <td><b>{x.total}</b></td>
-              <td className="cell-sub">{x.rondas.size}</td>
-              <td><span className="badge ok">{x.autorizadas}</span></td>
-              <td>{x.rechazadas ? <span className="badge bad">{x.rechazadas}</span> : <span className="cell-sub">—</span>}</td>
-              <td className="cell-sub">{fmtKm(x.km)}</td>
-              <td>
+            // La franja avisa de lo único accionable de esta vista: quién
+            // arrastra novedades sin resolver.
+            <tr key={x.id} className={x.abiertas ? "est-warn" : x.rechazadas ? "est-bad" : "est-ok"}>
+              <td className="celda-corta placa-celda" title={x.nombre}>{x.nombre}</td>
+              <td className="celda-num"><b>{x.total}</b></td>
+              <td className="celda-num cell-sub">{x.rondas.size}</td>
+              <td className="celda-num"><span className="badge ok">{x.autorizadas}</span></td>
+              <td className="celda-num">{x.rechazadas ? <span className="badge bad">{x.rechazadas}</span> : <span className="cell-sub">—</span>}</td>
+              <td className="celda-num cell-sub">{fmtKm(x.km)}</td>
+              <td className="celda-corta">
                 {x.novedades
                   ? <>{x.novedades} en total{x.abiertas ? <div className="cell-sub" style={{ color: "var(--red)" }}>{x.abiertas} sin resolver</div> : null}</>
                   : <span className="cell-sub">ninguna</span>}
               </td>
-              <td className="cell-sub" style={{ whiteSpace: "nowrap" }}>{fmtDateTime(x.ultima)}</td>
-              <td><Link className="btn btn-ghost btn-sm" href={enlace(x.id)}>Ver detalle</Link></td>
+              <td className="celda-fecha">{fmtDateTime(x.ultima)}</td>
+              <td><Link className="btn btn-ghost btn-sm" href={enlace(x.id)}>Detalle</Link></td>
             </tr>
           ))}
         </tbody>
@@ -285,23 +293,31 @@ export default async function ReportesPage({
           <div className="panel-head"><div><div className="panel-title">Detalle de inspecciones</div>
             <div className="panel-sub">{rows.length} inspección(es) con los filtros aplicados</div></div></div>
           {rows.length ? (
-            <div style={{ overflowX: "auto" }}>
-              <table className="data-table">
-                <thead><tr><th>Fecha</th><th>Ronda</th><th>Vehículo</th><th>Conductor</th><th>Recorrido</th><th>Desenlace</th></tr></thead>
+            <div className="tabla-op">
+              <table>
+                <colgroup>
+                  <col style={{ width: "15%" }} /><col style={{ width: "14%" }} />
+                  <col style={{ width: "12%" }} /><col style={{ width: "20%" }} />
+                  <col style={{ width: "11%" }} /><col />
+                </colgroup>
+                <thead><tr><th>Fecha</th><th>Ronda</th><th>Vehículo</th><th>Conductor</th>
+                  <th className="celda-num">Recorrido</th><th>Desenlace</th></tr></thead>
                 <tbody>
                   {rows.map((r) => {
                     const c = conteoNov[r.id] ?? { abiertas: 0, totales: 0 };
                     const m = motivoDe({ ...r, novedades_abiertas: c.abiertas, novedades_total: c.totales });
                     return (
-                      <tr key={r.id}>
-                        <td className="cell-sub" style={{ whiteSpace: "nowrap" }}>{fmtDateTime(r.submitted_at)}</td>
-                        <td className="cell-sub">{etiquetaRonda[r.round_id ?? ""] ?? "—"}</td>
-                        <td className="cell-veh">{r.vehicle_plate}</td>
-                        <td>{r.driver_name}</td>
-                        <td className="cell-sub">{r.recorrido != null ? fmtKm(r.recorrido) : "—"}</td>
-                        <td style={{ minWidth: 200 }}>
-                          <span className={"badge " + m.tono}>{m.titulo}</span>
-                          <div className="cell-sub">{m.detalle}</div>
+                      <tr key={r.id} className={FRANJA[m.tono]}>
+                        <td className="celda-fecha">{fmtDateTime(r.submitted_at)}</td>
+                        <td className="celda-corta cell-sub" title={etiquetaRonda[r.round_id ?? ""] ?? ""}>{etiquetaRonda[r.round_id ?? ""] ?? "—"}</td>
+                        <td><span className="placa-celda">{r.vehicle_plate}</span></td>
+                        <td className="celda-corta" title={r.driver_name ?? ""}>{r.driver_name}</td>
+                        <td className="celda-num">{r.recorrido != null ? fmtKm(r.recorrido) : "—"}</td>
+                        <td>
+                          <div className="desenlace">
+                            <span className={"badge " + m.tono} style={{ alignSelf: "flex-start" }}>{m.titulo}</span>
+                            <span className="motivo" title={m.detalle}>{m.detalle}</span>
+                          </div>
                         </td>
                       </tr>
                     );

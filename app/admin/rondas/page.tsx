@@ -39,7 +39,8 @@ export default async function RondasPage() {
       {pending.length ? (
         <div className="panel" style={{ borderColor: "#F0C4B9", background: "var(--red-soft)", marginBottom: 14 }}>
           <div className="panel-title" style={{ color: "var(--red)" }}>⚠ Sin inspeccionar en esta ronda ({pending.length})</div>
-          <div className="panel-sub" style={{ marginTop: 6 }}>{pending.map((v) => <span key={v} className="plate-chip">{v}</span>)}</div>
+          <div className="rejilla-placas">{pending.map((v) => (
+            <span key={v} className="placa-casilla sin"><span className="p">{v}</span></span>))}</div>
         </div>
       ) : (
         <div className="panel" style={{ borderColor: "#B8E0C8", background: "var(--green-soft)", marginBottom: 14 }}>
@@ -51,7 +52,8 @@ export default async function RondasPage() {
         <div className="panel" style={{ marginBottom: 14 }}>
           <div className="panel-title">Vehículos bloqueados</div>
           <div className="panel-sub" style={{ margin: "8px 0" }}>No pueden operar hasta ser liberados (novedades o bloqueo administrativo).</div>
-          <div>{blocked.map((v) => <span key={v} className="plate-chip" style={{ background: "var(--red-soft)", color: "var(--red)" }}>{v}</span>)}</div>
+          <div className="rejilla-placas">{blocked.map((v) => (
+            <span key={v} className="placa-casilla mala"><span className="p">{v}</span></span>))}</div>
         </div>
       )}
 
@@ -67,26 +69,31 @@ export default async function RondasPage() {
         </div>
         {open?.notes ? <div className="cell-sub" style={{ marginBottom: 12 }}>{open.notes}</div> : null}
 
-        <div className="manage-list">
+        <div className="lista-unidades">
           {(rounds ?? []).map((r) => {
             const items = inspByRound[r.id] ?? [];
             const okc = items.filter((i) => i.ok).length;
             return (
-              <div key={r.id} className="manage-row" style={{ flexDirection: "column", alignItems: "stretch" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-                  <div>
-                    <strong>{r.label}</strong>{" "}
+              <div key={r.id} className={"fila-unidad " + (r.status === "open" ? "est-ok" : "est-off")}
+                style={{ gridTemplateColumns: "1fr", gap: 0, alignItems: "stretch" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                  <div className="unidad-id">
+                    <span className="unidad-placa" style={{ fontSize: 14 }}>{r.label}</span>
                     {r.status === "open" ? <span className="badge ok">Abierta</span> : <span className="badge neutral">Cerrada</span>}
-                    {r.responsible ? <span className="cell-sub"> · {r.responsible}</span> : null}
+                    {r.responsible ? <span className="unidad-datos">{r.responsible}</span> : null}
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                    <span className="cell-sub">{items.length} inspección(es) · {okc} en buen estado · {items.length - okc} con novedades</span>
+                  <div className="fila-acciones">
+                    <span className="unidad-datos">{items.length} inspección(es) · {okc} en buen estado · {items.length - okc} con novedades</span>
                     <RoundActions roundId={r.id} label={r.label} inspections={items.length} />
                   </div>
                 </div>
                 {items.length > 0 && (
-                  <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>
-                    {items.map((i, k) => <span key={k} className="plate-chip">{i.plate} <span className="cell-sub">{i.time}</span></span>)}
+                  <div className="rejilla-placas">
+                    {items.map((i, k) => (
+                      <span key={k} className={"placa-casilla" + (i.ok ? "" : " mala")}>
+                        <span className="p">{i.plate}</span><span className="h">{i.time}</span>
+                      </span>
+                    ))}
                   </div>
                 )}
               </div>
