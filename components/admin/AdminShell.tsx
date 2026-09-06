@@ -10,6 +10,7 @@ import Logo from "@/components/brand/Logo";
 import OrgSwitcher from "@/components/admin/OrgSwitcher";
 import type { Role } from "@/lib/types";
 import BuscadorGlobal from "./BuscadorGlobal";
+import Cinematica from "@/components/admin/Cinematica";
 
 const ICONS: Record<string, string> = {
   dashboard: '<rect x="3" y="3" width="8" height="8" rx="1.6"/><rect x="13" y="3" width="8" height="5" rx="1.6"/><rect x="13" y="10" width="8" height="11" rx="1.6"/><rect x="3" y="13" width="8" height="8" rx="1.6"/>',
@@ -86,6 +87,7 @@ export default function AdminShell({
 
   return (
     <div className="admin-shell admin-mode">
+      <Cinematica />
       <div className={"sidebar-scrim" + (open ? " show" : "")} onClick={() => setOpen(false)} />
       <aside className={"admin-sidebar" + (open ? " open" : "")}>
         <div className="sb-head">

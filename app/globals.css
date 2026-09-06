@@ -2590,10 +2590,22 @@ input::placeholder, textarea::placeholder{ color:var(--muted); opacity:1; }
 .admin-mode .admin-main::before{
   content:""; position:fixed; inset:0; z-index:0; pointer-events:none;
   background:
-    radial-gradient(60rem 40rem at 78% -8%, rgba(30,99,233,.13), transparent 62%),
+    radial-gradient(60rem 40rem at 78% -8%, rgba(30,99,233,.09), transparent 62%),
     radial-gradient(46rem 34rem at 4% 108%, rgba(99,166,234,.14), transparent 60%),
     linear-gradient(178deg, #F7FAFE 0%, #EEF4FC 48%, #E9F1FB 100%);
 }
+/* El halo que sigue al puntero va en su PROPIA capa y se mueve con transform,
+   no cambiando la posición del degradado: mover un degradado obliga a repintar
+   una superficie del tamaño de la ventana en cada fotograma. Con transform el
+   compositor la desplaza sin volver a dibujarla. */
+.admin-mode .admin-main::after{
+  content:""; position:fixed; z-index:0; pointer-events:none;
+  top:-26rem; right:-16rem; width:64rem; height:46rem;
+  background:radial-gradient(closest-side, rgba(30,99,233,.13), transparent 72%);
+  transform:translate3d(var(--luz-tx,0px), var(--luz-ty,0px), 0);
+  will-change:transform;
+}
+
 .admin-mode .admin-body,
 .admin-mode .admin-topbar{ position:relative; z-index:1; }
 
@@ -2818,3 +2830,134 @@ input::placeholder, textarea::placeholder{ color:var(--muted); opacity:1; }
 /* Un botón partido en dos renglones estira la fila y rompe la retícula. */
 .fila-acciones .btn,
 .unidad-pie .btn{ white-space:nowrap; }
+
+/* =========================================================
+   CAPA CINEMÁTICA — cámara, luz y movimiento
+   ---------------------------------------------------------
+   REGRESIÓN QUE SE CORRIGE AQUÍ: el fondo ambiental se montó como
+   `position:fixed; inset:0` dentro de .admin-main. Fijo al viewport significa
+   TODO el viewport, y como el <aside> va antes que .admin-main en el DOM y
+   ninguno de los dos declaraba z-index, la capa se pintaba encima de la barra
+   lateral y la hacía desaparecer. La barra recupera su propio plano.
+
+   Lo demás es lenguaje: una sola curva de aceleración para todo el panel, luz
+   que entra por arriba a la izquierda, y entrada escalonada de los bloques.
+   El movimiento aquí sirve para orientar —de dónde viene esto, a dónde va—,
+   no para lucirse: esta pantalla se mira ocho horas al día.
+   ========================================================= */
+:root{
+  /* Una sola curva para todo: salida rápida, llegada suave. Es lo que hace que
+     interfaces distintas se sientan del mismo aparato. */
+  --curva:cubic-bezier(.32,.72,0,1);
+  --curva-suave:cubic-bezier(.4,0,.2,1);
+  --t-rapido:.18s; --t-medio:.32s; --t-lento:.55s;
+}
+
+/* La barra lateral vuelve a su plano, por encima del fondo ambiental. */
+.admin-mode .admin-sidebar{ z-index:3; }
+.admin-mode .admin-topbar{ z-index:2; }
+
+/* -------------------------------------------------------- barra lateral --- */
+/* Profundidad real: un foco frío arriba a la izquierda y una vela de luz que
+   cae por el borde derecho, que es donde la barra toca el contenido. */
+.admin-mode .admin-sidebar{
+  background:
+    radial-gradient(28rem 20rem at -10% -6%, rgba(56,120,220,.30), transparent 62%),
+    radial-gradient(22rem 26rem at 120% 108%, rgba(30,99,233,.16), transparent 60%),
+    linear-gradient(180deg, #0B2545 0%, #0A1F3A 52%, #071527 100%);
+  box-shadow:
+    1px 0 0 rgba(255,255,255,.05) inset,
+    6px 0 34px rgba(7,21,39,.30);
+}
+.admin-mode .sb-link{
+  position:relative; overflow:hidden;
+  transition:background var(--t-rapido) var(--curva-suave),
+             color var(--t-rapido) var(--curva-suave),
+             transform var(--t-rapido) var(--curva);
+}
+.admin-mode .sb-link:hover{ transform:translateX(2px); }
+.admin-mode .sb-link:active{ transform:translateX(1px) scale(.99); }
+/* El activo no es un bloque plano: lleva su propia fuente de luz y un filo
+   que marca dónde está uno dentro del panel. */
+.admin-mode .sb-link.active{
+  background:linear-gradient(135deg, rgba(30,99,233,.95) 0%, rgba(21,84,208,.95) 100%);
+  box-shadow:
+    0 8px 22px rgba(30,99,233,.34),
+    0 1px 0 rgba(255,255,255,.16) inset;
+}
+.admin-mode .sb-link.active::before{
+  content:""; position:absolute; left:0; top:50%; transform:translateY(-50%);
+  width:3px; height:60%; border-radius:0 3px 3px 0; background:#9FC4FF;
+  box-shadow:0 0 12px rgba(159,196,255,.9);
+}
+.admin-mode .sb-link svg{ transition:transform var(--t-medio) var(--curva); }
+.admin-mode .sb-link:hover svg{ transform:scale(1.08); }
+
+/* ------------------------------------------------------------ entradas --- */
+/* Los bloques no aparecen de golpe: se asientan. Escalonados por posición, la
+   página se lee en el orden en que se compuso. */
+@keyframes asentar{
+  from{ opacity:0; transform:translateY(14px) scale(.985); }
+  to{ opacity:1; transform:none; }
+}
+.admin-mode .panel,
+.admin-mode .kpi-card,
+.admin-mode .round-card{
+  animation:asentar var(--t-lento) var(--curva) both;
+}
+.admin-mode .admin-body > *:nth-child(1){ animation-delay:.02s; }
+.admin-mode .admin-body > *:nth-child(2){ animation-delay:.07s; }
+.admin-mode .admin-body > *:nth-child(3){ animation-delay:.12s; }
+.admin-mode .admin-body > *:nth-child(4){ animation-delay:.17s; }
+.admin-mode .admin-body > *:nth-child(n+5){ animation-delay:.22s; }
+
+/* Las tarjetas de una rejilla entran en cascada, no en bloque. */
+.burbuja, .tarjeta-unidad{ animation:asentar var(--t-medio) var(--curva) both; }
+.burbujas > *:nth-child(1),.rejilla-flota > *:nth-child(1){ animation-delay:.03s; }
+.burbujas > *:nth-child(2),.rejilla-flota > *:nth-child(2){ animation-delay:.06s; }
+.burbujas > *:nth-child(3),.rejilla-flota > *:nth-child(3){ animation-delay:.09s; }
+.burbujas > *:nth-child(4),.rejilla-flota > *:nth-child(4){ animation-delay:.12s; }
+.burbujas > *:nth-child(5),.rejilla-flota > *:nth-child(5){ animation-delay:.15s; }
+.burbujas > *:nth-child(n+6),.rejilla-flota > *:nth-child(n+6){ animation-delay:.18s; }
+
+/* ----------------------------------------------------------- reveladas --- */
+/* Lo que está por debajo del pliegue espera a entrar en cuadro. Es el único
+   efecto ligado al scroll: nada se mueve mientras se lee. */
+[data-entra]{ opacity:0; transform:translateY(18px); }
+[data-entra].en-cuadro{
+  opacity:1; transform:none;
+  transition:opacity var(--t-lento) var(--curva), transform var(--t-lento) var(--curva);
+}
+
+/* --------------------------------------------------------------- luz ----- */
+/* Filo especular en el canto superior: lo que separa una tarjeta impresa de
+   una superficie iluminada. */
+.admin-mode .panel,
+.burbuja, .tarjeta-unidad, .fila-unidad{
+  position:relative;
+}
+.admin-mode .panel::after,
+.burbuja::after, .tarjeta-unidad::after{
+  content:""; position:absolute; left:14px; right:14px; top:0; height:1px;
+  background:linear-gradient(90deg, transparent, rgba(255,255,255,.9), transparent);
+  pointer-events:none; border-radius:1px;
+}
+.tarjeta-unidad::after{ top:3px; }
+
+/* Levantar es acercar la cámara, no agrandar el objeto. */
+.fila-unidad{ transition:transform var(--t-rapido) var(--curva), box-shadow var(--t-rapido) var(--curva), border-color var(--t-rapido); }
+.fila-unidad:hover{ transform:translateY(-1px); }
+
+/* ---------------------------------------------------------- sin motivo --- */
+/* Quien pide menos movimiento lo recibe: nada de esto es información. */
+@media (prefers-reduced-motion:reduce){
+  .admin-mode .panel, .admin-mode .kpi-card, .admin-mode .round-card,
+  .burbuja, .tarjeta-unidad{ animation:none; }
+  [data-entra]{ opacity:1; transform:none; }
+  .admin-mode .sb-link:hover{ transform:none; }
+  .fila-unidad:hover{ transform:none; }
+}
+
+/* Un bloque que espera al scroll no debe además entrar solo al cargar: las dos
+   animaciones a la vez se pisan y el bloque parpadea. */
+.espera-cuadro{ animation:none !important; }
