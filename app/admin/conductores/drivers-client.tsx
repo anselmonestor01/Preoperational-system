@@ -270,7 +270,7 @@ export default function DriversClient({
                   <span className="manage-avatar" style={{ overflow: "hidden", padding: 0, width: 34, height: 34 }}>
                     {photo ? <img src={photo} alt="" className="drv-photo" /> : initials(d.full_name)}
                   </span>
-                  <span className="celda-corta" style={{ fontWeight: 600, color: "var(--navy)" }} title={d.full_name}>{d.full_name}</span>
+                  <span className="celda-corta nombre-persona" title={d.full_name}>{d.full_name}</span>
                   {distintivo(d, homonimos) && (
                     <span className="badge neutral" style={{ fontWeight: 600 }}>{distintivo(d, homonimos)}</span>
                   )}

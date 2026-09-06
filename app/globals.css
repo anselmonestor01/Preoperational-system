@@ -2961,3 +2961,344 @@ input::placeholder, textarea::placeholder{ color:var(--muted); opacity:1; }
 /* Un bloque que espera al scroll no debe además entrar solo al cargar: las dos
    animaciones a la vez se pisan y el bloque parpadea. */
 .espera-cuadro{ animation:none !important; }
+
+/* =========================================================
+   TEMA OSCURO DEL PANEL — «premium, caro»
+   ---------------------------------------------------------
+   Los módulos eran superficies blancas sobre fondo claro: legibles, pero sin
+   materia. Aquí el panel pasa a un negro azulado profundo con superficies de
+   vidrio ahumado y acentos de neón racionados.
+   
+   ALCANCE: sólo `.admin-mode`. El kiosco se queda claro a propósito —lo usa un
+   conductor a las cinco de la mañana, de pie, a veces a pleno sol— y un tema
+   oscuro ahí se lee peor, no mejor.
+
+   MÉTODO: en vez de voltear los tokens globales (que sirven a la vez para
+   texto oscuro y para fondos oscuros, y voltearlos rompe ambos), se declara
+   una paleta propia y se reviste explícitamente cada superficie del panel.
+   Más largo de escribir, pero predecible.
+   ========================================================= */
+.admin-mode{
+  --n0:#05070D;   /* el vacío, detrás de todo            */
+  --n1:#0A0E17;   /* fondo de la aplicación              */
+  --n2:#111725;   /* superficie elevada                  */
+  --n3:#161E30;   /* superficie sobre superficie         */
+  --filo:rgba(255,255,255,.07);      /* canto de 1 px    */
+  --filo-vivo:rgba(255,255,255,.13); /* canto iluminado  */
+  --tinta:#E8EEF9;                   /* texto principal  */
+  --tinta-2:#A9B6CD;                 /* secundario       */
+  --tinta-3:#6E7C94;                 /* terciario        */
+  --neon:#5AA9FF;                    /* acento           */
+  --neon-2:#7DD3FC;                  /* acento claro     */
+  --brillo:rgba(90,169,255,.55);     /* halo del acento  */
+  --ok:#3DDC97; --alerta:#FFB454; --mal:#FF6B63;
+
+  /* Vidrio ahumado: negro translúcido con desenfoque detrás. */
+  --humo:rgba(17,23,37,.72);
+  --humo-firme:rgba(17,23,37,.88);
+
+  /* En oscuro la sombra apenas se ve: la profundidad la dan el canto
+     iluminado de arriba y el halo, no el negro debajo. */
+  --alza-1:0 1px 0 rgba(255,255,255,.05) inset, 0 8px 24px rgba(0,0,0,.45);
+  --alza-2:0 1px 0 rgba(255,255,255,.06) inset, 0 16px 44px rgba(0,0,0,.55);
+  --alza-3:0 1px 0 rgba(255,255,255,.09) inset, 0 28px 70px rgba(0,0,0,.65);
+}
+
+/* ------------------------------------------------------------- escena --- */
+.admin-mode .admin-main::before{
+  background:
+    radial-gradient(70rem 44rem at 76% -12%, rgba(38,96,190,.30), transparent 60%),
+    radial-gradient(52rem 40rem at 2% 106%, rgba(58,140,220,.18), transparent 58%),
+    radial-gradient(40rem 30rem at 50% 50%, rgba(20,40,80,.30), transparent 70%),
+    linear-gradient(178deg, #080C15 0%, #0A0F1B 45%, #060911 100%);
+}
+.admin-mode .admin-main::after{
+  background:radial-gradient(closest-side, rgba(90,169,255,.16), transparent 72%);
+}
+.admin-mode{ color:var(--tinta); }
+.admin-mode .admin-topbar{
+  background:rgba(10,14,23,.72);
+  border-bottom:1px solid var(--filo);
+}
+.admin-mode .at-title{ color:var(--tinta); letter-spacing:-.02em; }
+.admin-mode .at-sub, .admin-mode .panel-sub, .admin-mode .cell-sub,
+.admin-mode .unidad-datos, .admin-mode .burbuja-meta{ color:var(--tinta-3); }
+.admin-mode .panel-title{ color:var(--tinta); letter-spacing:-.01em; }
+.admin-mode h1, .admin-mode h2, .admin-mode h3, .admin-mode strong,
+.admin-mode b, .admin-mode .kpi-num{ color:var(--tinta); }
+
+/* ---------------------------------------------------------- superficies --- */
+.admin-mode .panel,
+.admin-mode .kpi-card,
+.admin-mode .detalle-ronda,
+.admin-mode .indice-abc{
+  background:var(--humo);
+  border:1px solid var(--filo);
+  box-shadow:var(--alza-2);
+}
+.admin-mode .burbuja,
+.admin-mode .tarjeta-unidad,
+.admin-mode .fila-unidad,
+.admin-mode .manage-row{
+  background:var(--humo-firme);
+  border:1px solid var(--filo);
+  box-shadow:var(--alza-1);
+  color:var(--tinta);
+}
+/* El filo especular ahora es luz de verdad, no un reflejo blanco. */
+.admin-mode .panel::after,
+.admin-mode .burbuja::after,
+.admin-mode .tarjeta-unidad::after{
+  background:linear-gradient(90deg, transparent, var(--filo-vivo), transparent);
+}
+.admin-mode .burbuja:hover,
+.admin-mode .tarjeta-unidad:hover{
+  border-color:rgba(90,169,255,.30);
+  box-shadow:var(--alza-3), 0 0 28px -6px var(--brillo);
+}
+.admin-mode .burbuja.abierta{
+  border-color:rgba(90,169,255,.5);
+  box-shadow:var(--alza-3), 0 0 0 1px rgba(90,169,255,.25), 0 0 34px -4px var(--brillo);
+}
+
+/* ------------------------------------------------------------- tablas --- */
+.admin-mode .tabla-op thead th{
+  background:rgba(5,7,13,.55); color:var(--tinta-3);
+  border-bottom:1px solid var(--filo);
+}
+.admin-mode .tabla-op tbody td{ border-bottom:1px solid rgba(255,255,255,.045); color:var(--tinta-2); }
+.admin-mode .tabla-op tbody tr:hover td{ background:rgba(90,169,255,.06); }
+.admin-mode .placa-celda, .admin-mode .unidad-placa{ color:var(--tinta); }
+.admin-mode .placa-celda .origen, .admin-mode .celda-fecha,
+.admin-mode .desenlace .motivo{ color:var(--tinta-3); }
+
+/* ------------------------------------------------------------ mandos --- */
+.admin-mode .btn-ghost{
+  background:rgba(255,255,255,.045); color:var(--tinta);
+  border:1px solid var(--filo);
+}
+.admin-mode .btn-ghost:hover{
+  background:rgba(90,169,255,.12); border-color:rgba(90,169,255,.35); color:#fff;
+}
+.admin-mode .btn-primary{
+  background:linear-gradient(135deg,#2B7BE4,#1B5FC4);
+  border:1px solid rgba(125,211,252,.35);
+  box-shadow:0 8px 24px -6px var(--brillo), 0 1px 0 rgba(255,255,255,.18) inset;
+}
+.admin-mode .btn-primary:hover{ box-shadow:0 12px 32px -6px var(--brillo), 0 1px 0 rgba(255,255,255,.24) inset; }
+.admin-mode .manage-input, .admin-mode .select,
+.admin-mode input[type="text"], .admin-mode input[type="date"],
+.admin-mode input[type="search"], .admin-mode textarea{
+  background:rgba(5,7,13,.5); color:var(--tinta);
+  border:1px solid var(--filo);
+}
+.admin-mode .manage-input::placeholder, .admin-mode textarea::placeholder{ color:var(--tinta-3); }
+.admin-mode .manage-input:focus, .admin-mode .select:focus, .admin-mode textarea:focus{
+  border-color:rgba(90,169,255,.5); box-shadow:0 0 0 3px rgba(90,169,255,.12); outline:none;
+}
+.admin-mode .date-chip, .admin-mode .hamburger, .admin-mode .manage-remove,
+.admin-mode .chip-filtro, .admin-mode .placa-casilla{
+  background:rgba(255,255,255,.05); color:var(--tinta-2); border:1px solid var(--filo);
+}
+.admin-mode .manage-remove:hover{ background:rgba(255,107,99,.16); color:var(--mal); border-color:rgba(255,107,99,.35); }
+.admin-mode .chip-filtro.activo{
+  background:linear-gradient(135deg,#2B7BE4,#1B5FC4); color:#fff;
+  border-color:rgba(125,211,252,.4); box-shadow:0 6px 18px -6px var(--brillo);
+}
+.admin-mode .pestana{ color:var(--tinta-3); }
+.admin-mode .pestana.activa{ color:var(--neon-2); border-bottom-color:var(--neon); }
+.admin-mode .placa-casilla .p{ color:var(--tinta); }
+.admin-mode .placa-casilla .h{ color:var(--tinta-3); }
+.admin-mode .abc-letra{ color:var(--neon); }
+.admin-mode .abc-letra:hover{ background:rgba(90,169,255,.14); }
+.admin-mode .abc-letra.vacia{ color:rgba(255,255,255,.13); }
+.admin-mode .abc-corte .l{ color:var(--tinta); }
+.admin-mode .abc-corte::after{ background:var(--filo); }
+.admin-mode .empty-state, .admin-mode .stub{ color:var(--tinta-3); }
+.admin-mode .stub h3{ color:var(--tinta-2); }
+.admin-mode .manage-avatar{ background:rgba(90,169,255,.14); color:var(--neon-2); }
+
+/* Insignias: tinte sobre el vidrio y texto en neón suave. */
+.admin-mode .badge{ background:rgba(255,255,255,.06); color:var(--tinta-2); border:1px solid var(--filo); }
+.admin-mode .badge.ok{   background:rgba(61,220,151,.12);  color:var(--ok);     border-color:rgba(61,220,151,.22); }
+.admin-mode .badge.warn{ background:rgba(255,180,84,.12);  color:var(--alerta); border-color:rgba(255,180,84,.22); }
+.admin-mode .badge.bad{  background:rgba(255,107,99,.12);  color:var(--mal);    border-color:rgba(255,107,99,.22); }
+.admin-mode .badge.info{ background:rgba(90,169,255,.14);  color:var(--neon-2); border-color:rgba(90,169,255,.26); }
+
+/* Estados: en oscuro el color puro quema, así que se atenúa y se le da halo. */
+.admin-mode .tabla-op tr.est-bad  td:first-child{ box-shadow:inset 3px 0 0 var(--mal),    inset 12px 0 18px -12px var(--mal); }
+.admin-mode .tabla-op tr.est-warn td:first-child{ box-shadow:inset 3px 0 0 var(--alerta), inset 12px 0 18px -12px var(--alerta); }
+.admin-mode .tabla-op tr.est-ruta td:first-child{ box-shadow:inset 3px 0 0 var(--neon),   inset 12px 0 18px -12px var(--neon); }
+.admin-mode .unidad-aviso.av-warn{ color:var(--alerta); background:rgba(255,180,84,.09); }
+.admin-mode .unidad-aviso.av-bad{  color:var(--mal);    background:rgba(255,107,99,.09); }
+.admin-mode .unidad-aviso.av-info{ color:var(--neon-2); background:rgba(90,169,255,.09); }
+.admin-mode .unidad-aviso{ border-top-color:var(--filo); }
+.admin-mode .burbuja-anillo .pista{ stroke:rgba(255,255,255,.09); }
+.admin-mode .burbuja-anillo .avance{ stroke:var(--neon); filter:drop-shadow(0 0 5px var(--brillo)); }
+.admin-mode .burbuja-total, .admin-mode .burbuja-nombre,
+.admin-mode .burbuja-cifras b{ color:var(--tinta); }
+.admin-mode .burbuja-pie{ color:var(--neon); }
+.admin-mode .punto-vivo{ background:var(--ok); box-shadow:0 0 0 3px rgba(61,220,151,.16), 0 0 12px var(--ok); }
+.admin-mode .unidad-foto{ background:linear-gradient(160deg,#141C2C,#0C121E); }
+.admin-mode .unidad-sinfoto{ color:rgba(255,255,255,.16); }
+.admin-mode .unidad-foto > .badge{ background:rgba(5,7,13,.7) !important; }
+.admin-mode .unidad-camara{ background:rgba(5,7,13,.7); color:var(--tinta-2); }
+
+/* Modales: el diálogo es la capa más alta, así que es la más iluminada. */
+.admin-mode .overlay{ background:rgba(3,5,10,.72); backdrop-filter:blur(6px); }
+.admin-mode .sheet{
+  background:var(--n2); color:var(--tinta);
+  border:1px solid var(--filo-vivo); box-shadow:var(--alza-3), 0 0 60px -20px var(--brillo);
+}
+.admin-mode .sheet-title{ color:var(--tinta); }
+.admin-mode .sheet-close{ background:rgba(255,255,255,.05); color:var(--tinta-2); border:1px solid var(--filo); }
+.admin-mode .field-label{ color:var(--tinta-2); }
+.admin-mode .pliegue > summary{ background:rgba(90,169,255,.12); color:var(--neon-2); }
+.admin-mode .grupo-ronda > summary{ color:var(--tinta); }
+
+/* ------------------------------------------------- barra lateral 3D ----- */
+/* Deja de ser un rectángulo azul. Cuatro capas de luz —foco frío arriba, calor
+   abajo, viñeta en el fondo y una vela vertical en el canto derecho, que es
+   donde toca el contenido— más un borde iluminado de 1 px. Ese canto es lo que
+   hace que el ojo lea la barra como un plano por delante, no como un fondo. */
+.admin-mode .admin-sidebar{
+  background:
+    radial-gradient(30rem 22rem at -12% -8%,  rgba(70,140,255,.22), transparent 60%),
+    radial-gradient(24rem 28rem at 118% 112%, rgba(90,169,255,.14), transparent 58%),
+    radial-gradient(30rem 40rem at 50% 50%,   rgba(10,18,34,.6),    transparent 75%),
+    linear-gradient(180deg, #0C1424 0%, #080D18 55%, #04070E 100%);
+  border-right:1px solid var(--filo);
+  box-shadow:
+    -1px 0 0 rgba(255,255,255,.05) inset,
+    1px 0 0 rgba(125,211,252,.10),
+    10px 0 46px rgba(0,0,0,.6);
+}
+.admin-mode .sb-head{ border-bottom:1px solid var(--filo); }
+.admin-mode .sb-foot{ border-top:1px solid var(--filo); }
+.admin-mode .sb-link{ color:var(--tinta-2); }
+.admin-mode .sb-link:hover{ background:rgba(255,255,255,.05); color:#fff; }
+
+/* El activo: cristal azul encendido por dentro, con una brasa de neón en el
+   canto izquierdo. El resplandor sale de la propia pastilla, no de una sombra
+   pegada debajo. */
+.admin-mode .sb-link.active{
+  background:linear-gradient(135deg, rgba(43,123,228,.92), rgba(21,84,208,.92));
+  color:#fff;
+  border:1px solid rgba(125,211,252,.32);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.22) inset,
+    0 10px 26px -8px var(--brillo),
+    0 0 22px -6px rgba(90,169,255,.6);
+}
+.admin-mode .sb-link.active::before{
+  background:var(--neon-2);
+  box-shadow:0 0 10px var(--neon-2), 0 0 20px var(--brillo);
+}
+.admin-mode .sb-avatar{
+  background:linear-gradient(135deg,#2B7BE4,#1B5FC4);
+  box-shadow:0 6px 18px -6px var(--brillo), 0 1px 0 rgba(255,255,255,.2) inset;
+}
+
+/* Una vena de luz recorre el canto derecho de la barra, muy despacio. Es el
+   único movimiento continuo de la interfaz: sugiere que el sistema está vivo
+   sin pedir atención. */
+.admin-mode .admin-sidebar::after{
+  content:""; position:absolute; top:0; right:-1px; width:2px; height:22%;
+  background:linear-gradient(180deg, transparent, var(--neon-2), transparent);
+  opacity:.5; animation:vena 9s var(--curva-suave) infinite;
+  pointer-events:none;
+}
+@keyframes vena{
+  0%   { transform:translateY(-30%); opacity:0; }
+  18%  { opacity:.55; }
+  82%  { opacity:.55; }
+  100% { transform:translateY(430%); opacity:0; }
+}
+
+/* ---------------------------------------------- movimiento de mandos --- */
+/* Un botón que se hunde al pulsarse comunica que el sistema recibió el golpe
+   antes de que llegue la respuesta del servidor. */
+.admin-mode .btn{ transition:transform var(--t-rapido) var(--curva), box-shadow var(--t-rapido) var(--curva), background var(--t-rapido), border-color var(--t-rapido); }
+.admin-mode .btn:active:not(:disabled){ transform:translateY(1px) scale(.985); }
+.admin-mode .chip-filtro{ transition:transform var(--t-rapido) var(--curva), background var(--t-rapido), border-color var(--t-rapido); }
+.admin-mode .chip-filtro:hover{ transform:translateY(-1px); border-color:rgba(90,169,255,.3); }
+
+/* El anillo de la burbuja se dibuja solo al aparecer, en vez de estar ya hecho. */
+@keyframes trazar{ from{ stroke-dashoffset:180; } to{ stroke-dashoffset:0; } }
+.admin-mode .burbuja-anillo .avance{ animation:trazar .9s var(--curva) both; }
+
+@media (prefers-reduced-motion:reduce){
+  .admin-mode .admin-sidebar::after{ animation:none; opacity:.3; }
+  .admin-mode .burbuja-anillo .avance{ animation:none; }
+  .admin-mode .btn:active:not(:disabled){ transform:none; }
+  .admin-mode .chip-filtro:hover{ transform:none; }
+}
+
+/* --------------------------------------------- ajustes sobre el negro --- */
+/* Texto secundario: 3,96:1 sobre el vidrio ahumado se lee mal en pantalla de
+   trabajo. Se sube hasta pasar el umbral sin que compita con el principal. */
+.admin-mode{ --tinta-3:#8C9BB4; }
+
+/* La banda de ronda era azul sólido y saturado: sobre el negro no informa,
+   grita. Pasa a vidrio con una brasa dentro y un canto de neón. */
+.admin-mode .round-card{
+  background:
+    radial-gradient(36rem 14rem at 12% -40%, rgba(90,169,255,.24), transparent 62%),
+    linear-gradient(135deg, rgba(22,42,80,.92), rgba(12,22,44,.92));
+  border:1px solid rgba(125,211,252,.16);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.08) inset,
+    0 20px 50px -20px rgba(0,0,0,.8),
+    0 0 40px -22px var(--brillo);
+  border-radius:20px;
+  position:relative; overflow:hidden;
+}
+/* Hilo de neón en el canto superior: marca la pieza sin llenarla de color. */
+.admin-mode .round-card::before{
+  content:""; position:absolute; left:0; right:0; top:0; height:1px;
+  background:linear-gradient(90deg, transparent, var(--neon-2), transparent);
+  opacity:.7;
+}
+.admin-mode .round-card-label{ color:var(--neon-2); opacity:1; }
+.admin-mode .round-card-name{ color:#fff; }
+.admin-mode .round-card .cell-sub{ color:var(--tinta-2); }
+
+/* Las KPI llevaban una barra de 3 px de color plano que sobre el negro parece
+   una pieza suelta flotando. Un hilo de 1 px con halo pertenece a la tarjeta. */
+.admin-mode .kpi-card::before{
+  height:1px; opacity:1;
+  background:linear-gradient(90deg, transparent, var(--neon), transparent);
+  box-shadow:0 0 10px -1px var(--brillo);
+}
+.admin-mode .kpi-card.tone-green::before{
+  background:linear-gradient(90deg, transparent, var(--ok), transparent);
+  box-shadow:0 0 10px -1px rgba(61,220,151,.5);
+}
+.admin-mode .kpi-card.tone-orange::before{
+  background:linear-gradient(90deg, transparent, var(--alerta), transparent);
+  box-shadow:0 0 10px -1px rgba(255,180,84,.5);
+}
+.admin-mode .kpi-card.tone-red::before{
+  background:linear-gradient(90deg, transparent, var(--mal), transparent);
+  box-shadow:0 0 10px -1px rgba(255,107,99,.5);
+}
+.admin-mode .kpi-card.tone-navy::before{
+  background:linear-gradient(90deg, transparent, var(--neon-2), transparent);
+}
+.admin-mode .kpi-label{ color:var(--tinta-3); }
+.admin-mode .kpi-card:hover{
+  transform:translateY(-2px);
+  box-shadow:var(--alza-2), 0 0 30px -10px var(--brillo);
+  border-color:rgba(90,169,255,.22);
+}
+
+/* El nombre de la persona llevaba su color escrito en línea, y en línea le gana
+   a cualquier tema: sobre el negro quedaba azul marino, ilegible. */
+.nombre-persona{ font-weight:600; color:var(--navy); }
+.admin-mode .nombre-persona{ color:var(--tinta); }
+
+/* El <body> conservaba el fondo claro: la capa fija del panel lo tapa a la
+   vista, pero las superficies son translúcidas y componen contra lo que hay
+   detrás. Además el rebote del scroll y el área de la barra de desplazamiento
+   asomaban en blanco. Se oscurece la raíz cuando el panel está montado. */
+body:has(.admin-mode){ background:#070B13; }
