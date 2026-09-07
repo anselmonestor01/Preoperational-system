@@ -59,6 +59,7 @@ export default function PanelFlotante() {
       const asa = sheet.querySelector<HTMLElement>(".sheet-head");
       if (!asa) return;
       asa.classList.add("asa-panel");
+      const capa = sheet.closest<HTMLElement>(".overlay");
 
       let x = 0, y = 0;             // desplazamiento aplicado
       let px = 0, py = 0;           // origen del puntero
@@ -80,6 +81,7 @@ export default function PanelFlotante() {
         if (idPuntero === null) return;
         idPuntero = null;
         sheet.removeAttribute("data-arrastrando");
+        capa?.removeAttribute("data-arrastrando");
         try { asa.releasePointerCapture(e.pointerId); } catch { /* ya soltado */ }
       };
 
@@ -104,6 +106,9 @@ export default function PanelFlotante() {
         // pegaba un salto de 24 px. Medido en el banco a 1440x900.
         sheet.style.animation = "none";
         sheet.dataset.arrastrando = "si";
+        // La capa también se entera: su esmerilado de pantalla completa se
+        // apaga mientras dura el arrastre (ver globals.css).
+        capa?.setAttribute("data-arrastrando", "si");
         try { asa.setPointerCapture(e.pointerId); } catch { /* sin captura, igual sirve */ }
         e.preventDefault();
       };

@@ -3027,6 +3027,39 @@ input::placeholder, textarea::placeholder{ color:var(--muted); opacity:1; }
 .admin-mode h1, .admin-mode h2, .admin-mode h3, .admin-mode strong,
 .admin-mode b, .admin-mode .kpi-num{ color:var(--tinta); }
 
+/* ============================== VIDRIO QUE NADIE VE — Y SE PAGABA CARO ======
+   El tema claro pintaba las superficies como cristal esmerilado: fondo blanco
+   al 72 % y `backdrop-filter: saturate(180%) blur(20px)`. Al pasar a oscuro se
+   les cambió el FONDO (--humo, --humo-firme) pero se dejó el filtro puesto.
+
+   Sobre un fondo de página casi plano (#070B13) y bajo una superficie opaca al
+   72-88 %, desenfocar no cambia un solo píxel: desenfocar un color plano
+   devuelve el mismo color plano. Pero el navegador no lo sabe, así que volvía a
+   resolver un blur de 20 px por CADA panel, burbuja, tarjeta y fila en cada
+   repintado. Con 100 vehículos son cien desenfoques de pantalla completa por
+   fotograma.
+
+   Y algo repintaba SIEMPRE: la vena de luz de la barra lateral se anima en
+   bucle. Resultado medido en Chromium con el CPU frenado 4x: el panel entero
+   corría a 18 fps EN REPOSO, sin tocar nada. Quitando este filtro invisible:
+   60 fps, y el arrastre de los modales pasa de 18 a 60.
+
+   El desenfoque de la capa modal SÍ se ve —detrás hay texto, no un color
+   plano— así que ese se queda; sólo se apaga mientras se arrastra el panel,
+   que es cuando su coste se paga sesenta veces por segundo.
+   ========================================================================= */
+.admin-mode .panel,
+.admin-mode .admin-topbar,
+.admin-mode .burbuja,
+.admin-mode .detalle-ronda,
+.admin-mode .tarjeta-unidad,
+.admin-mode .indice-abc,
+.admin-mode .kpi-card,
+.admin-mode .fila-unidad{
+  backdrop-filter:none;
+  -webkit-backdrop-filter:none;
+}
+
 /* ---------------------------------------------------------- superficies --- */
 .admin-mode .panel,
 .admin-mode .kpi-card,
@@ -3614,6 +3647,20 @@ body:has(.admin-mode){ background:#070B13; }
   .asa-panel:hover::before{ background:var(--blue); }
   .sheet[data-arrastrando] .asa-panel{ cursor:grabbing; }
   .sheet[data-arrastrando] .asa-panel::before{ background:var(--blue); }
+}
+
+/* La vena de la barra es el único movimiento continuo de la interfaz, y con un
+   modal abierto queda debajo de la capa oscura: no se ve, pero seguía forzando
+   un repintado por fotograma que sí se pagaba en el esmerilado de la capa
+   (37 fps con ella, 60 sin ella). Con un modal abierto se detiene. */
+.admin-mode:has(.overlay.show) .admin-sidebar::after{ animation-play-state:paused; }
+
+/* Mientras el panel se arrastra, el esmerilado de la capa se apaga: es un blur
+   de pantalla completa y volver a resolverlo en cada fotograma era la mitad del
+   presupuesto del arrastre (36 fps con él, 60 sin él). Al soltar vuelve. */
+.admin-mode .overlay[data-arrastrando]{
+  backdrop-filter:none;
+  -webkit-backdrop-filter:none;
 }
 
 .admin-mode .asa-panel::before{ background:rgba(255,255,255,.16); }
