@@ -15,6 +15,8 @@
 // Configura estas variables de entorno EN EL SERVIDOR (nunca NEXT_PUBLIC_):
 //
 //   NOTIFY_SECRET          Secreto que autoriza a llamar este endpoint
+//   CRON_SECRET            Lo genera Vercel para sus tareas programadas; si
+//                          existe, también autoriza (es quien llama al cron)
 //   WHATSAPP_TOKEN         Token permanente de la app de Meta
 //   WHATSAPP_PHONE_ID      Identificador del número remitente
 //
@@ -45,8 +47,17 @@ export async function POST(request: Request) {
 
   // Autorización por secreto compartido: sin esto, cualquiera podría disparar
   // envíos masivos usando el sistema como plataforma de spam.
+  //
+  // Se aceptan DOS secretos válidos porque hay dos formas legítimas de llamar:
+  // una tarea programada de Vercel, que manda su propio CRON_SECRET, y una
+  // llamada manual o desde otro programador, que manda NOTIFY_SECRET. Antes
+  // sólo valía el segundo, de modo que la tarea programada —la única vía
+  // automática— habría recibido un 401 en cada ejecución.
   const cabecera = request.headers.get("authorization") ?? "";
-  if (cabecera !== `Bearer ${secreto}`) {
+  const cron = process.env.CRON_SECRET;
+  const autorizado =
+    cabecera === `Bearer ${secreto}` || (!!cron && cabecera === `Bearer ${cron}`);
+  if (!autorizado) {
     return NextResponse.json({ ok: false }, { status: 401 });
   }
 
