@@ -3531,3 +3531,91 @@ body:has(.admin-mode){ background:#070B13; }
 .admin-mode .abc-letra.vacia{ color:rgba(255,255,255,.28); }
 /* Y el contador de cada inicial se quedó con el gris del tema claro. */
 .admin-mode .abc-corte .n{ color:var(--tinta-3); }
+
+/* =========================================================
+   TEXTO OSCURO SOBRE FONDO OSCURO
+   ---------------------------------------------------------
+   El barrido anterior comparó FONDOS y dejó fuera los COLORES DE TEXTO. Veinte
+   clases del panel fijan tinta oscura (`var(--navy)`, `var(--navy-70)`), y una
+   clase que fija color gana a la herencia de `.admin-mode`: por eso seguían
+   saliendo letras negras sobre negro en Configuración y en Acceso QR.
+   ========================================================= */
+.admin-mode .manage-row-main,
+.admin-mode .alerta-titulo,
+.admin-mode .issue-sub-item,
+.admin-mode .wa-row-head,
+.admin-mode .kpi-card,
+.admin-mode .kpi-card.tone-navy,
+.admin-mode .form-group,
+.admin-mode .legend-name,
+.admin-mode .dialog-sheet{ color:var(--tinta); }
+
+.admin-mode .form-group label,
+.admin-mode .legend-name,
+.admin-mode .qr-steps,
+.admin-mode .qr-steps li{ color:var(--tinta-2); }
+
+.admin-mode .qr-steps b,
+.admin-mode .qr-steps strong{ color:var(--tinta); }
+
+/* El aviso verde del módulo QR llevaba tinta verde oscura pensada para fondo
+   claro: sobre el negro quedaba ilegible. */
+.admin-mode .qr-note{
+  color:var(--ok); background:rgba(61,220,151,.09);
+  border:1px solid rgba(61,220,151,.22);
+}
+.admin-mode .qr-note b, .admin-mode .qr-note strong{ color:#7DEBBB; }
+
+.admin-mode .pin-input{ background:rgba(0,0,0,.35); color:var(--tinta); border-color:var(--filo); }
+
+/* EXCEPCIÓN: el cartel del QR se imprime en papel. Su tinta se queda oscura a
+   propósito —sobre el blanco del cartel— y el bloque de más abajo ya le fija
+   fondo claro. Si se aclarara aquí, saldría en blanco sobre blanco al imprimir. */
+.admin-mode .qr-poster,
+.admin-mode .qr-poster-title,
+.admin-mode .qr-poster-brand,
+.admin-mode .qr-poster-cta{ color:var(--navy) !important; }
+.admin-mode .qr-poster-steps{ color:var(--navy-70) !important; }
+
+/* =========================================================================
+   PANEL FLOTANTE — el modal deja de ser una hoja y pasa a ser una ventana
+   -------------------------------------------------------------------------
+   Un diálogo de 88vh sobre una pantalla de 1080 mide 950 px: tapa justo el
+   dato que uno estaba mirando y obliga a cerrarlo para comprobar algo. Aquí
+   nace pequeño y centrado, y la cabecera es un asa para llevarlo a donde
+   estorbe menos. El arrastre vive en components/admin/PanelFlotante.tsx.
+
+   Debajo de 760 px no se toca nada: con el pulgar, lo correcto sigue siendo
+   una hoja que sube desde abajo y ocupa el ancho.
+   ========================================================================= */
+@media (min-width:760px){
+  .sheet{
+    max-width:440px;
+    max-height:min(74vh, 620px);
+  }
+  .sheet.wide{ max-width:560px; max-height:min(80vh, 700px); }
+
+  /* La cabecera es el asa. Se marca desde JS (.asa-panel) para que un modal
+     sin la lógica montada no anuncie un arrastre que no existe. */
+  .asa-panel{
+    position:relative;
+    cursor:grab;
+    user-select:none;
+    -webkit-user-select:none;
+    touch-action:none;
+  }
+  .asa-panel::before{
+    content:"";
+    position:absolute; left:50%; top:9px;
+    width:36px; height:4px; margin-left:-18px;
+    border-radius:99px; background:var(--line);
+    transition:background .18s ease;
+  }
+  .asa-panel:hover::before{ background:var(--blue); }
+  .sheet[data-arrastrando] .asa-panel{ cursor:grabbing; }
+  .sheet[data-arrastrando] .asa-panel::before{ background:var(--blue); }
+}
+
+.admin-mode .asa-panel::before{ background:rgba(255,255,255,.16); }
+.admin-mode .asa-panel:hover::before,
+.admin-mode .sheet[data-arrastrando] .asa-panel::before{ background:var(--neon); }
