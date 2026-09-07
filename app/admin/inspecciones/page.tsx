@@ -16,6 +16,7 @@
 //   · FILTRO POR RONDA — además de placa, conductor y estado.
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { oExplota } from "@/lib/consulta";
 import { fmtDateTime, fmtKm } from "@/lib/format";
 import { motivoDe, etiquetaResultado, FRANJA } from "@/lib/motivos";
 import InspectionActions from "./inspection-actions";
@@ -68,9 +69,11 @@ export default async function InspeccionesPage({ searchParams }: { searchParams:
   const abierta = searchParams.abierta ?? "";
   const q = (searchParams.q ?? "").trim();
 
-  const { data: rondas } = await supabase.from("rounds")
+  const { data: rondas, error: errRondas } = await supabase.from("rounds")
     .select("id,label,round_number,responsible,status,started_at,closed_at")
     .order("round_number", { ascending: false }).limit(200);
+  // Un fallo aquí dejaría el historial vacío como si no hubiera rondas.
+  oExplota({ data: rondas, error: errRondas }, "las rondas");
 
   /** Filtros comunes a las dos vistas. */
   const aplicarFiltros = (query: any) => {

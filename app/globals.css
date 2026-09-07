@@ -3340,3 +3340,194 @@ body:has(.admin-mode){ background:#070B13; }
 .limite-c .manage-input{ width:88px; min-width:0; flex:none; text-align:right; }
 .admin-mode .limite-n{ color:var(--tinta); }
 .admin-mode .limite-d, .admin-mode .limite-c{ color:var(--tinta-3); }
+
+/* =========================================================
+   REVISIÓN DE ACABADO — superficies que se quedaron en claro
+   ---------------------------------------------------------
+   El tema oscuro se escribió clase a clase, y clase a clase se olvidan cosas.
+   Este bloque sale de cruzar TODAS las reglas con fondo claro contra las que
+   tenían versión bajo `.admin-mode`: veintiocho superficies del panel seguían
+   en blanco, con su texto claro encima e ilegible.
+   ========================================================= */
+
+/* ------------------------------------------- cabecera de modal fija ----- */
+/* EL FALLO: `.sheet` tiene scroll propio y la cabecera no estaba fijada. En
+   cuanto el formulario desbordaba —pantalla corta o formulario largo— bastaba
+   con que un campo recibiera el foco para que el navegador desplazara el modal
+   y se llevara el título Y el botón de cerrar fuera de vista. Reproducido a
+   700 px de alto: el foco lo desplazaba 89 px y el título desaparecía.
+   Ahora la cabecera se queda, que es lo que debe hacer la cabecera de algo
+   con scroll. */
+.sheet{ --sheet-bg:#fff; padding-top:0 !important; overscroll-behavior:contain; }
+.sheet-head{
+  position:sticky; top:0; z-index:2;
+  margin:0 -22px 16px; padding:22px 22px 12px;
+  background:var(--sheet-bg);
+  border-bottom:1px solid var(--line-soft);
+}
+.admin-mode .sheet{ --sheet-bg:var(--n2); }
+.admin-mode .sheet-head{ border-bottom-color:var(--filo); }
+
+/* --------------------------------------------- superficies olvidadas --- */
+.admin-mode .summary-card{ background:rgba(90,169,255,.07); border:1px solid var(--filo); }
+.admin-mode .summary-row{ border-bottom:1px solid rgba(255,255,255,.04); }
+.admin-mode .summary-row:last-child{ border-bottom:none; }
+.admin-mode .summary-row .k, .admin-mode .summary-row span:first-child{ color:var(--tinta-3); }
+.admin-mode .summary-row .v, .admin-mode .summary-row span:last-child{ color:var(--tinta); }
+
+.admin-mode .issue-card,
+.admin-mode .report-photo-card,
+.admin-mode .wa-row,
+.admin-mode .alerta-fila,
+.admin-mode .config-cat{
+  background:var(--humo-firme); border:1px solid var(--filo); color:var(--tinta);
+}
+.admin-mode .issue-card-text{ color:var(--tinta-2); }
+.admin-mode .alerta-fila:hover{ background:rgba(90,169,255,.09); border-color:rgba(90,169,255,.28); }
+.admin-mode .report-photo-thumb{ background:rgba(90,169,255,.08); }
+
+.admin-mode .wa-chip{ background:rgba(255,255,255,.05); color:var(--tinta-2); border:1px solid var(--filo); }
+.admin-mode .wa-chip:hover{ background:rgba(90,169,255,.12); color:var(--neon-2); border-color:rgba(90,169,255,.3); }
+
+.admin-mode .stub-icon,
+.admin-mode .kpi-icon,
+.admin-mode .cat-icon{ background:rgba(90,169,255,.12); color:var(--neon-2); }
+.admin-mode .evi-thumb{ background:rgba(255,255,255,.04); border-color:var(--filo); }
+.admin-mode .medidor{ background:rgba(255,255,255,.07); }
+.admin-mode .chip-num{ background:rgba(255,255,255,.09); color:var(--tinta-2); }
+.admin-mode .chip-filtro.activo .chip-num{ background:rgba(0,0,0,.28); color:#fff; }
+
+/* Menús flotantes: son la capa más alta, así que la más iluminada. */
+.admin-mode .sugerencias,
+.admin-mode .org-switcher-menu{
+  background:var(--n3); border:1px solid var(--filo-vivo);
+  box-shadow:var(--alza-3);
+}
+.admin-mode .sugerencia{ color:var(--tinta-2); }
+.admin-mode .sugerencia:hover, .admin-mode .sugerencia.marcada{
+  background:rgba(90,169,255,.14); color:#fff;
+}
+.admin-mode .org-switcher-item{ color:var(--tinta-2); }
+.admin-mode .org-switcher-item:hover{ background:rgba(90,169,255,.12); color:#fff; }
+.admin-mode .org-switcher-item.activa{ background:rgba(90,169,255,.16); color:var(--neon-2); }
+
+.admin-mode .placa-casilla.sin{ background:transparent; border-style:dashed; border-color:var(--filo-vivo); }
+.admin-mode .placa-casilla.mala{ background:rgba(255,107,99,.10); border-color:rgba(255,107,99,.24); }
+.admin-mode .placa-casilla.mala .p{ color:var(--mal); }
+.admin-mode .chip-placa-btn{ background:rgba(255,255,255,.05); color:var(--tinta); border:1px solid var(--filo); }
+.admin-mode .chip-placa-btn:hover{ background:rgba(90,169,255,.14); color:var(--neon-2); border-color:rgba(90,169,255,.3); }
+.admin-mode .panel-link{ color:var(--neon); }
+.admin-mode .pw-toggle{ background:transparent; color:var(--tinta-3); }
+.admin-mode .data-table tr:hover td{ background:rgba(90,169,255,.06); }
+.admin-mode .data-table td, .admin-mode .data-table th{ border-color:rgba(255,255,255,.05); }
+
+/* Los diálogos de confirmar heredan de .sheet, pero su tono de peligro y su
+   texto se declaraban aparte. */
+.admin-mode .dialog-message{ color:var(--tinta-2); }
+.admin-mode .dialog-warning{ background:rgba(255,107,99,.10); color:var(--mal); border-color:rgba(255,107,99,.24); }
+.admin-mode .dialog-error{ color:var(--mal); }
+.admin-mode .dialog-tag-danger{ background:rgba(255,107,99,.14); color:var(--mal); }
+
+/* EXCEPCIÓN DELIBERADA: el cartel del QR se imprime en papel. Se queda claro
+   con contraste alto; en oscuro sería tinta desperdiciada y un código ilegible. */
+.admin-mode .qr-poster, .admin-mode .qr-code{ background:#fff; color:var(--navy); }
+.admin-mode .qr-poster *{ color:inherit; }
+
+/* La carcasa misma seguía declarando fondo claro. La capa fija lo tapa, pero
+   dejarlo así hace que cualquier hueco entre superficies asome en blanco. */
+.admin-mode.admin-shell, .admin-mode .admin-main, .admin-mode .admin-body{ background:transparent; }
+
+/* ------------------------------------------ el resto de las superficies --- */
+/* Estas se me escaparon dos veces: la primera porque usan degradado en vez de
+   color plano, y la segunda porque les había puesto color de texto pero no
+   fondo, y mi comprobación daba la clase por resuelta. El criterio correcto es
+   «¿declara FONDO bajo .admin-mode?», no «¿aparece bajo .admin-mode?». */
+.admin-mode .empty-state{
+  background:linear-gradient(180deg, rgba(90,169,255,.06) 0%, transparent 70%);
+  border:1px dashed var(--filo-vivo); color:var(--tinta-3);
+}
+.admin-mode .wa-destino{
+  background:rgba(90,169,255,.08); border:1px solid var(--filo); color:var(--tinta);
+}
+.admin-mode .wa-destino .cell-sub{ color:var(--tinta-3); }
+.admin-mode .wa-preview{
+  background:rgba(255,255,255,.04); border:1px solid var(--filo); color:var(--tinta-2);
+}
+.admin-mode .org-switcher-btn{
+  background:rgba(255,255,255,.05); border:1px solid var(--filo); color:var(--tinta);
+}
+.admin-mode .org-switcher-btn:hover{ background:rgba(90,169,255,.12); border-color:rgba(90,169,255,.3); }
+.admin-mode .panel-link{ background:none; color:var(--neon); }
+.admin-mode .btn-danger{
+  background:linear-gradient(135deg, #C6423C, #A93731); color:#fff;
+  border:1px solid rgba(255,107,99,.4);
+  box-shadow:0 8px 22px -8px rgba(255,107,99,.5), 0 1px 0 rgba(255,255,255,.16) inset;
+}
+/* El visor de fotos ya es oscuro por dentro: sus mandos van en vidrio claro
+   sobre la imagen, y ahí el blanco translúcido es lo correcto. Se deja. */
+
+/* --------------------------------------------- estados del sistema ------ */
+/* Error, carga y ruta inexistente. Antes no existía ninguno de los tres: un
+   fallo de consulta se veía igual que «no hay datos», y navegar entre módulos
+   no daba señal de que algo estuviera pasando. */
+.estado-grave{ text-align:center; padding:38px 26px !important; }
+.estado-icono{
+  width:52px; height:52px; margin:0 auto 14px; border-radius:16px;
+  display:flex; align-items:center; justify-content:center;
+  background:var(--red-soft); color:var(--red);
+}
+.estado-titulo{ font-family:var(--font-display),system-ui,sans-serif; font-size:16.5px;
+  font-weight:700; color:var(--navy); margin:0 0 8px; }
+.estado-texto{ font-size:13.2px; line-height:1.55; color:var(--muted); max-width:420px; margin:0 auto 12px; }
+.estado-detalle{
+  font-family:var(--mono, ui-monospace), Menlo, monospace; font-size:11.5px; line-height:1.5;
+  color:var(--muted); background:var(--bg); border:1px solid var(--line);
+  border-radius:10px; padding:10px 12px; max-width:520px; margin:0 auto 16px;
+  word-break:break-word; text-align:left;
+}
+.estado-acciones{ display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
+.admin-mode .estado-icono{ background:rgba(255,107,99,.13); color:var(--mal); }
+.admin-mode .estado-titulo{ color:var(--tinta); }
+.admin-mode .estado-texto{ color:var(--tinta-2); }
+.admin-mode .estado-detalle{ background:rgba(0,0,0,.35); border-color:var(--filo); color:var(--tinta-3); }
+
+/* Esqueleto de carga: bloques que laten, del color del material. */
+.hueso{ border-radius:8px; background:var(--line-soft); position:relative; overflow:hidden; }
+.hueso::after{
+  content:""; position:absolute; inset:0; transform:translateX(-100%);
+  background:linear-gradient(90deg, transparent, rgba(255,255,255,.5), transparent);
+  animation:latido 1.4s infinite;
+}
+.hueso-titulo{ width:190px; height:15px; margin-bottom:9px; }
+.hueso-sub{ width:280px; height:11px; margin-bottom:20px; }
+.huesos-filas{ display:flex; flex-direction:column; gap:9px; }
+.hueso-fila{ height:52px; }
+@keyframes latido{ 100%{ transform:translateX(100%); } }
+.admin-mode .hueso{ background:rgba(255,255,255,.05); }
+.admin-mode .hueso::after{ background:linear-gradient(90deg, transparent, rgba(255,255,255,.07), transparent); }
+@media (prefers-reduced-motion:reduce){ .hueso::after{ animation:none; } }
+
+/* Texto sólo para lectores de pantalla. */
+.sr-only{
+  position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+  overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0;
+}
+
+/* Una capa antigua de «pulido» declara este fondo con !important, y eso vence
+   a cualquier regla del tema por específica que sea. Es el mecanismo por el que
+   varias superficies seguían en blanco pese a tener su versión oscura escrita. */
+.admin-mode .summary-card{
+  background:linear-gradient(135deg, rgba(90,169,255,.10), rgba(90,169,255,.04)) !important;
+  border:1px solid var(--filo) !important;
+}
+.admin-mode .btn-primary:disabled{
+  background:rgba(255,255,255,.07) !important; color:var(--tinta-3);
+  border-color:var(--filo); box-shadow:none;
+}
+
+/* El índice mostraba las iniciales sin conductores a 1,28:1 —invisibles— y el
+   alfabeto se veía a medio pintar, como si el componente estuviera roto. Una
+   letra apagada tiene que leerse como apagada, no como ausente. */
+.admin-mode .abc-letra.vacia{ color:rgba(255,255,255,.28); }
+/* Y el contador de cada inicial se quedó con el gris del tema claro. */
+.admin-mode .abc-corte .n{ color:var(--tinta-3); }

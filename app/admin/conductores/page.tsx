@@ -6,6 +6,7 @@
 // conductor, y el vehículo tomado durante la ronda—; aquí se hace visible para
 // que el administrador no tenga que adivinarla.
 import { createClient } from "@/lib/supabase/server";
+import { oExplota } from "@/lib/consulta";
 import DriversClient, { type DriverRow } from "./drivers-client";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +18,7 @@ export default async function ConductoresPage() {
     .select("id,label").eq("status", "open")
     .order("round_number", { ascending: false }).limit(1).maybeSingle();
 
-  const [{ data: drivers }, { data: org }, { data: enRuta }, { data: enRonda }] = await Promise.all([
+  const [{ data: drivers, error: errDrivers }, { data: org }, { data: enRuta }, { data: enRonda }] = await Promise.all([
     supabase.from("drivers").select("id,full_name,license,whatsapp,photo_path,active").order("full_name"),
     supabase.from("organizations").select("id").maybeSingle(),
     // Operación abierta: salió y no ha registrado el regreso.
@@ -31,7 +32,7 @@ export default async function ConductoresPage() {
       : Promise.resolve({ data: [] as any[] }),
   ]);
 
-  const rows = (drivers ?? []) as DriverRow[];
+  const rows = (oExplota({ data: drivers, error: errDrivers }, "el personal") ?? []) as DriverRow[];
   const paths = rows.filter((d) => d.photo_path).map((d) => d.photo_path!) as string[];
   const photoMap: Record<string, string> = {};
   if (paths.length) {

@@ -1,5 +1,6 @@
 // Rondas: ronda vigente, cobertura de la flota y vehículos aún sin inspeccionar.
 import { createClient } from "@/lib/supabase/server";
+import { oExplota } from "@/lib/consulta";
 import { fmtDateTime, fmtTime } from "@/lib/format";
 import NewRoundButton from "./new-round-button";
 import RoundActions from "./round-actions";
@@ -9,11 +10,14 @@ export const dynamic = "force-dynamic";
 export default async function RondasPage() {
   const supabase = createClient();
 
-  const [{ data: rounds }, { data: vehicles }] = await Promise.all([
+  const [{ data: rounds, error: errRounds }, { data: vehicles }] = await Promise.all([
     supabase.from("rounds").select("id,round_number,label,status,started_at,closed_at,responsible,notes")
       .order("round_number", { ascending: false }).limit(30),
     supabase.from("vehicle_status_view").select("plate,availability").neq("status", "archived"),
   ]);
+  // Sin esto, un fallo de consulta pintaría «aún no hay rondas registradas»
+  // sobre una avería, que es la forma más engañosa de romperse.
+  oExplota({ data: rounds, error: errRounds }, "las rondas");
 
   const open = (rounds ?? []).find((r) => r.status === "open") ?? null;
   const vlist = vehicles ?? [];

@@ -4,6 +4,7 @@
 // A escala añade dos datos que la vista no trae y que los filtros rápidos
 // necesitan: qué unidades salieron hoy y cuáles siguen fuera.
 import { createClient } from "@/lib/supabase/server";
+import { oExplota } from "@/lib/consulta";
 import VehiclesClient, { type VehicleRow } from "./vehicles-client";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +27,7 @@ export default async function VehiculosPage({
   const { desde, hasta } = diaBogota();
   // `vehicle_status_view` no expone photo_path y se comparte con el kiosco, así
   // que la foto se trae aparte y se cruza por id en vez de recrear la vista.
-  const [{ data: rows }, { data: ops }, { data: round }, { data: hoy }, { data: fotos }, { data: org }] = await Promise.all([
+  const [{ data: rows, error: errRows }, { data: ops }, { data: round }, { data: hoy }, { data: fotos }, { data: org }] = await Promise.all([
     supabase.from("vehicle_status_view").select("*").order("plate"),
     supabase.from("inspections").select("vehicle_id").eq("operation_status", "open"),
     supabase.from("rounds").select("label").eq("status", "open").order("round_number", { ascending: false }).limit(1).maybeSingle(),
@@ -49,12 +50,15 @@ export default async function VehiculosPage({
       if (f.photo_path && porRuta[f.photo_path]) photoMap[f.id] = porRuta[f.photo_path];
     });
   }
+  // Si la consulta de flota falla, esto lanza y el límite de error lo explica,
+  // en vez de pintar «no hay vehículos» sobre una avería.
+  const filas = oExplota({ data: rows, error: errRows }, "la flota") ?? [];
   const opsBy: Record<string, number> = {};
   (ops ?? []).forEach((o: any) => { opsBy[o.vehicle_id] = (opsBy[o.vehicle_id] ?? 0) + 1; });
   const inspeccionadosHoy = Array.from(new Set((hoy ?? []).map((h: any) => h.vehicle_id).filter(Boolean)));
   return (
     <VehiclesClient
-      rows={(rows ?? []) as VehicleRow[]}
+      rows={filas as VehicleRow[]}
       opsBy={opsBy}
       roundLabel={round?.label ?? "—"}
       inspeccionadosHoy={inspeccionadosHoy}
