@@ -1,7 +1,6 @@
 "use client";
 
-// Movimiento del panel: revelado al entrar en cuadro y luz ambiental que sigue
-// al puntero.
+// Movimiento del panel: revelado de los bloques al entrar en cuadro.
 //
 // POR QUÉ ASÍ Y NO CON WEBGL
 // Una escena WebGL detrás de una tabla de inspecciones cuesta una capa de
@@ -60,29 +59,13 @@ export default function Cinematica() {
     const cuerpo = document.querySelector(".admin-body");
     if (cuerpo) mutaciones.observe(cuerpo, { childList: true, subtree: true });
 
-    // --- luz que sigue al puntero ---------------------------------------
-    const shell = document.querySelector<HTMLElement>(".admin-mode");
-    let pedido = 0, x = 0.78, y = 0;
-    const mover = (ev: PointerEvent) => {
-      x = ev.clientX / window.innerWidth;
-      y = ev.clientY / window.innerHeight;
-      if (pedido) return;
-      pedido = requestAnimationFrame(() => {
-        pedido = 0;
-        // Amplitud corta: la luz acompaña, no persigue. Un paralaje amplio en
-        // una pantalla de trabajo distrae en lugar de situar. Son píxeles y no
-        // porcentajes porque lo que se mueve es una capa con transform.
-        shell?.style.setProperty("--luz-tx", `${((x - 0.5) * -90).toFixed(1)}px`);
-        shell?.style.setProperty("--luz-ty", `${((y - 0.5) * 60).toFixed(1)}px`);
-      });
-    };
-    window.addEventListener("pointermove", mover, { passive: true });
+    // La luz ambiente del fondo es fija y vive sólo en CSS. Seguía al puntero y
+    // eso costaba el 40 % del presupuesto de fotograma: ver la nota larga en
+    // globals.css, junto a .admin-mode .admin-main::after.
 
     return () => {
       ojo.disconnect();
       mutaciones.disconnect();
-      window.removeEventListener("pointermove", mover);
-      if (pedido) cancelAnimationFrame(pedido);
     };
   }, []);
 

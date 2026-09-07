@@ -2594,16 +2594,29 @@ input::placeholder, textarea::placeholder{ color:var(--muted); opacity:1; }
     radial-gradient(46rem 34rem at 4% 108%, rgba(99,166,234,.14), transparent 60%),
     linear-gradient(178deg, #F7FAFE 0%, #EEF4FC 48%, #E9F1FB 100%);
 }
-/* El halo que sigue al puntero va en su PROPIA capa y se mueve con transform,
-   no cambiando la posición del degradado: mover un degradado obliga a repintar
-   una superficie del tamaño de la ventana en cada fotograma. Con transform el
-   compositor la desplaza sin volver a dibujarla. */
+/* LUZ AMBIENTE, QUIETA — Y POR QUÉ DEJÓ DE SEGUIR AL PUNTERO
+   Este halo seguía al ratón. Costaba dos cosas y las dos eran caras:
+
+   1. Su posición llegaba por dos variables CSS escritas en la raíz del panel.
+      Una propiedad personalizada HEREDA, así que cambiarla obligaba a recalcular
+      el estilo de todo lo que colgaba de ella. Con 100 vehículos en pantalla
+      eran tareas de 70-90 ms POR FOTOGRAMA: bastaba mover el ratón para que el
+      panel entero bajara a 15 fps.
+   2. Aun arreglando eso —moviéndolo con un transform sobre su propio elemento,
+      sin tocar el hilo principal— una capa translúcida desplazándose por encima
+      de cien tarjetas obliga al compositor a rehacer la mezcla de todo lo que
+      tapa en cada fotograma: 33 fps, con cero tareas largas. El coste era
+      íntegramente de composición, y no se arregla con `will-change`.
+
+   Medido: quieto son 53 fps —el techo de mover el ratón sobre cien tarjetas— y
+   da igual que el halo sea grande o pequeño. Así que se queda entero, con toda
+   su luz, y sólo pierde el paralaje. La profundidad la siguen dando las capas,
+   las sombras y el degradado de fondo; lo que se va es un desplazamiento de
+   ±90 px que casi nadie veía y costaba el 40 % del presupuesto de fotograma. */
 .admin-mode .admin-main::after{
   content:""; position:fixed; z-index:0; pointer-events:none;
   top:-26rem; right:-16rem; width:64rem; height:46rem;
   background:radial-gradient(closest-side, rgba(30,99,233,.13), transparent 72%);
-  transform:translate3d(var(--luz-tx,0px), var(--luz-ty,0px), 0);
-  will-change:transform;
 }
 
 .admin-mode .admin-body,
@@ -3398,6 +3411,17 @@ body:has(.admin-mode){ background:#070B13; }
   background:var(--sheet-bg);
   border-bottom:1px solid var(--line-soft);
 }
+/* El contenido que sigue por debajo se desvanece en vez de cortarse a media
+   tarjeta. Un corte limpio parece un fallo de maquetación; un degradado dice
+   «sigue hacia abajo». Va pegado al fondo del panel, con margen negativo para
+   no ocupar sitio, y no intercepta el ratón. Sólo aparece cuando el panel de
+   verdad tiene más abajo: un velo sobre contenido completo mentiría. */
+.sheet[data-desborda]::after{
+  content:""; display:block; position:sticky; bottom:-1px; z-index:1;
+  height:46px; margin-top:-46px; pointer-events:none;
+  background:linear-gradient(to bottom, transparent, var(--sheet-bg));
+}
+
 .admin-mode .sheet{ --sheet-bg:var(--n2); }
 .admin-mode .sheet-head{ border-bottom-color:var(--filo); }
 
@@ -3622,11 +3646,15 @@ body:has(.admin-mode){ background:#070B13; }
    una hoja que sube desde abajo y ocupa el ancho.
    ========================================================================= */
 @media (min-width:760px){
+  /* Pequeño de verdad. En una pantalla de 770 px de alto —un portátil con la
+     barra del navegador— un 80vh son 616 px: el panel llenaba la pantalla y se
+     cortaba abajo. El tope absoluto manda sobre el porcentual, que es lo que
+     hace que se sienta una ventana y no una hoja. */
   .sheet{
-    max-width:440px;
-    max-height:min(74vh, 620px);
+    max-width:420px;
+    max-height:min(66vh, 480px);
   }
-  .sheet.wide{ max-width:560px; max-height:min(80vh, 700px); }
+  .sheet.wide{ max-width:520px; max-height:min(70vh, 520px); }
 
   /* La cabecera es el asa. Se marca desde JS (.asa-panel) para que un modal
      sin la lógica montada no anuncie un arrastre que no existe. */

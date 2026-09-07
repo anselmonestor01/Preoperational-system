@@ -135,10 +135,22 @@ export default function PanelFlotante() {
       });
     }
 
+    // El velo del pie sólo se pinta si hay algo más abajo. Se recomprueba en
+    // cada tanda de cambios porque el contenido de un modal suele llegar
+    // después: primero el marco, luego la consulta.
+    function marcarDesborde(sheet: HTMLElement) {
+      const hayMas = sheet.scrollHeight - sheet.clientHeight > 4;
+      if (hayMas) sheet.dataset.desborda = "si";
+      else sheet.removeAttribute("data-desborda");
+    }
+
     let pendiente = false;
     const revisar = () => {
       pendiente = false;
-      document.querySelectorAll<HTMLElement>(".overlay.show .sheet").forEach(preparar);
+      document.querySelectorAll<HTMLElement>(".overlay.show .sheet").forEach((sheet) => {
+        preparar(sheet);
+        marcarDesborde(sheet);
+      });
     };
     const encolar = () => {
       if (pendiente) return;
