@@ -3694,3 +3694,63 @@ body:has(.admin-mode){ background:#070B13; }
 .admin-mode .asa-panel::before{ background:rgba(255,255,255,.16); }
 .admin-mode .asa-panel:hover::before,
 .admin-mode .sheet[data-arrastrando] .asa-panel::before{ background:var(--neon); }
+
+/* =========================================================================
+   MODO LIVIANO Y MEDIDOR — herramientas de diagnóstico
+   -------------------------------------------------------------------------
+   ?liviano=1 apaga toda la decoración de golpe. Sirve para partir el problema
+   en dos de un clic: si con esto va fluido, el adorno es el culpable y se
+   quita de raíz; si sigue igual, el problema no está en el CSS.
+   Ver components/admin/Diagnostico.tsx.
+   ========================================================================= */
+html[data-liviano] *,
+html[data-liviano] *::before,
+html[data-liviano] *::after{
+  animation:none !important;
+  transition:none !important;
+  backdrop-filter:none !important;
+  -webkit-backdrop-filter:none !important;
+  box-shadow:none !important;
+  text-shadow:none !important;
+  filter:none !important;
+}
+/* El indicador de carga sí tiene que seguir girando: parado parece averiado. */
+html[data-liviano] .spinner{ animation:spin .7s linear infinite !important; }
+/* Y el foco del teclado no se pierde por ser una sombra. */
+html[data-liviano] :focus-visible{ outline:2px solid #5AA9FF !important; outline-offset:2px; }
+
+html[data-liviano] .admin-mode .admin-sidebar{ background:#080D18 !important; }
+html[data-liviano] .admin-mode .admin-main::before,
+html[data-liviano] .admin-mode .admin-main::after,
+html[data-liviano] .admin-mode .admin-sidebar::after{ display:none !important; }
+html[data-liviano] .admin-mode .panel,
+html[data-liviano] .admin-mode .kpi-card,
+html[data-liviano] .admin-mode .detalle-ronda,
+html[data-liviano] .admin-mode .indice-abc,
+html[data-liviano] .admin-mode .burbuja,
+html[data-liviano] .admin-mode .tarjeta-unidad,
+html[data-liviano] .admin-mode .fila-unidad,
+html[data-liviano] .admin-mode .manage-row,
+html[data-liviano] .admin-mode .sheet{ background:#111725 !important; }
+html[data-liviano] .admin-mode .overlay{ background:rgba(3,5,10,.88) !important; }
+
+/* -------------------------------------------------------------- medidor --- */
+.medidor-diag{
+  position:fixed; right:12px; bottom:12px; z-index:9999;
+  background:#0B1220; color:#E6EDF7; border:1px solid #2A3550;
+  border-radius:12px; padding:10px 12px; font-size:11.5px; line-height:1.5;
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  max-width:340px; pointer-events:auto;
+}
+.medidor-diag[data-flojo]{ border-color:#C6423C; }
+.medidor-cifra{ font-size:19px; font-weight:700; letter-spacing:-.5px; margin-bottom:2px; }
+.medidor-diag[data-flojo] .medidor-cifra{ color:#FF8A84; }
+.medidor-linea{ color:#9FB0CC; }
+.medidor-linea b{ color:#E6EDF7; font-weight:600; }
+.medidor-alerta{ color:#FF8A84; font-weight:700; }
+.medidor-copiar{
+  margin-top:8px; width:100%; cursor:pointer;
+  background:#1D2B47; color:#E6EDF7; border:1px solid #2A3550;
+  border-radius:8px; padding:5px 8px; font:inherit; font-size:11px;
+}
+.medidor-copiar:hover{ background:#25375C; }
