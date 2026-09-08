@@ -2,9 +2,9 @@
 
 // Estructura del panel: barra lateral, cabecera y navegación responsive.
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { initials } from "@/lib/format";
 import Logo from "@/components/brand/Logo";
 import OrgSwitcher from "@/components/admin/OrgSwitcher";
@@ -82,6 +82,41 @@ export default function AdminShell({
   const [title, sub] =
     TITLES[pathname] ??
     (Object.entries(TITLES).find(([k]) => k !== "/admin" && pathname.startsWith(k))?.[1] ?? ["Panel", ""]);
+  // PRECARGA AL APUNTAR
+  // Cada módulo es una página dinámica: al pulsar, el servidor tiene que
+  // resolver la sesión y consultar la base antes de devolver nada, y hasta
+  // entonces sólo se ve el esqueleto. Medio segundo por clic, siempre igual,
+  // aunque la empresa tenga un solo vehículo: es coste fijo, no volumen.
+  //
+  // Entre que el ratón llega al enlace y se pulsa pasan unas décimas. Ese hueco
+  // se aprovecha para pedir la página entera —`kind: "full"`, no sólo el
+  // esqueleto— de modo que al pulsar ya esté servida.
+  //
+  // Se pide UNA vez por módulo y tras 90 ms de reposo sobre el enlace, para que
+  // pasar el ratón por encima de la lista no dispare once peticiones.
+  const router = useRouter();
+  const pedidos = useRef<Set<string>>(new Set());
+  const reloj = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const cancelarPrecarga = () => {
+    if (reloj.current) { clearTimeout(reloj.current); reloj.current = null; }
+  };
+  const precargar = (href: string) => {
+    if (pedidos.current.has(href)) return;
+    cancelarPrecarga();
+    reloj.current = setTimeout(() => {
+      reloj.current = null;
+      if (pedidos.current.has(href)) return;
+      pedidos.current.add(href);
+      // `kind` no está en los tipos públicos de Next 14, pero sí en el router:
+      // sin él, una ruta dinámica sólo precarga hasta su loading.tsx, que es
+      // justo la espera que queremos quitar.
+      const conTipo = router as unknown as { prefetch(h: string, o?: { kind: string }): void };
+      try { conTipo.prefetch(href, { kind: "full" }); }
+      catch { router.prefetch(href); }
+    }, 90);
+  };
+
   const today = new Date().toLocaleDateString("es-CO", {
     timeZone: "America/Bogota", weekday: "short", day: "2-digit", month: "short",
   });
@@ -107,7 +142,15 @@ export default function AdminShell({
           {NAV.map((n) => {
             const active = n.href === "/admin" ? pathname === "/admin" : pathname.startsWith(n.href);
             return (
-              <Link key={n.href} href={n.href} className={"sb-link" + (active ? " active" : "")} onClick={() => setOpen(false)}>
+              <Link
+                key={n.href}
+                href={n.href}
+                className={"sb-link" + (active ? " active" : "")}
+                onClick={() => setOpen(false)}
+                onMouseEnter={() => precargar(n.href)}
+                onMouseLeave={cancelarPrecarga}
+                onFocus={() => precargar(n.href)}
+              >
                 {navIcon(n.key)}{n.label}
               </Link>
             );
