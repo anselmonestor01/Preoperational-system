@@ -3754,3 +3754,4 @@ html[data-liviano] .admin-mode .overlay{ background:rgba(3,5,10,.88) !important;
   border-radius:8px; padding:5px 8px; font:inherit; font-size:11px;
 }
 .medidor-copiar:hover{ background:#25375C; }
+.medidor-pie{ margin-top:6px; color:#6F8098; font-size:10px; line-height:1.4; }
